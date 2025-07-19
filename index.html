@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>モグラ叩きゲーム</title>
+  <style>
+    body {
+      text-align: center;
+      background: #eef;
+      font-family: 'Arial', sans-serif;
+    }
+    h1 {
+      margin-top: 20px;
+    }
+    #game {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      grid-gap: 20px;
+      justify-content: center;
+      margin-top: 30px;
+    }
+    .hole {
+      width: 100px;
+      height: 100px;
+      background: #ccc;
+      border-radius: 50%;
+      position: relative;
+      cursor: pointer;
+    }
+    .mole {
+      width: 80px;
+      height: 80px;
+      background: brown;
+      border-radius: 50%;
+      position: absolute;
+      top: 10px;
+      left: 10px;
+    }
+    #score {
+      margin-top: 20px;
+      font-size: 24px;
+    }
+    button {
+      margin-top: 20px;
+      font-size: 20px;
+      padding: 10px 20px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<h1>モグラ叩きゲーム</h1>
+<div id="score">スコア: 0</div>
+<div id="game"></div>
+<button onclick="startGame()">スタート</button>
+
+<audio id="hitSound" src="hit.mp3"></audio>
+<audio id="missSound" src="miss.mp3"></audio>
+<audio id="startSound" src="start.mp3"></audio>
+<audio id="endSound" src="end.mp3"></audio>
+
+<script>
+  const gameContainer = document.getElementById("game");
+  const scoreDisplay = document.getElementById("score");
+  const hitSound = document.getElementById("hitSound");
+  const missSound = document.getElementById("missSound");
+  const startSound = document.getElementById("startSound");
+  const endSound = document.getElementById("endSound");
+
+  let score = 0;
+  let currentHole = null;
+  let gameInterval;
+  let gameDuration = 15000; // 15秒間
+
+  // 9つの穴を作成
+  for (let i = 0; i < 9; i++) {
+    const hole = document.createElement("div");
+    hole.className = "hole";
+    hole.dataset.index = i;
+    hole.addEventListener("click", () => {
+      if (hole === currentHole && hole.firstChild) {
+        score++;
+        scoreDisplay.textContent = "スコア: " + score;
+        hole.innerHTML = "";
+        hitSound.play();
+      } else {
+        missSound.play();
+      }
+    });
+    gameContainer.appendChild(hole);
+  }
+
+  function showMole() {
+    if (currentHole) {
+      currentHole.innerHTML = ""; // 前のモグラを消す
+    }
+    const holes = document.querySelectorAll(".hole");
+    const index = Math.floor(Math.random() * holes.length);
+    const mole = document.createElement("div");
+    mole.className = "mole";
+    holes[index].appendChild(mole);
+    currentHole = holes[index];
+  }
+
+  function startGame() {
+    score = 0;
+    scoreDisplay.textContent = "スコア: 0";
+    startSound.play();
+
+    gameInterval = setInterval(showMole, 800);
+    setTimeout(() => {
+      clearInterval(gameInterval);
+      if (currentHole) currentHole.innerHTML = "";
+      alert("ゲーム終了！あなたのスコアは " + score + " 点です。");
+      endSound.play();
+    }, gameDuration);
+  }
+</script>
+
+</body>
+</html>
