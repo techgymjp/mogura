@@ -615,6 +615,8 @@
   });
 
   // ---------- シェア ----------
+  // シェア文に付ける紹介記事の URL（アプリ・Web 版とも）
+  const SHARE_URL = 'https://techgym.jp/column/claude-code-game-mogura/';
   $('shareBtn').addEventListener('click', async () => {
     const text = t('share.text', {
       score: state.score,
@@ -623,15 +625,15 @@
     });
     const nativeShare = plugin('Share');
     if (nativeShare) {
-      try { await nativeShare.share({ title: t('share.title'), text, dialogTitle: t('share.dialog') }); } catch (e) { /* キャンセル */ }
+      try { await nativeShare.share({ title: t('share.title'), text, url: SHARE_URL, dialogTitle: t('share.dialog') }); } catch (e) { /* キャンセル */ }
       return;
     }
     if (navigator.share) {
-      try { await navigator.share({ title: t('share.title'), text, url: location.href }); } catch (e) { /* キャンセル */ }
+      try { await navigator.share({ title: t('share.title'), text, url: SHARE_URL }); } catch (e) { /* キャンセル */ }
       return;
     }
     try {
-      await navigator.clipboard.writeText(text + ' ' + location.href);
+      await navigator.clipboard.writeText(text + ' ' + SHARE_URL);
       $('shareToast').textContent = t('share.copied');
       $('shareToast').hidden = false;
     } catch (e) { /* コピーできない環境 */ }
