@@ -2,121 +2,549 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>モグラ叩きゲーム</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>本能寺の変モグラ叩き</title>
   <style>
+    :root {
+      --night: #120b0b;
+      --wood: #5a3420;
+      --wood-dark: #331c10;
+      --gold: #e8c26a;
+      --paper: #f3e6c8;
+      --fire: #ff6a1a;
+      --blood: #b3261e;
+      --kikyo: #6f7fd8;
+    }
+
+    * { box-sizing: border-box; }
+
     body {
+      margin: 0;
+      min-height: 100vh;
       text-align: center;
-      background: #eef;
-      font-family: 'Arial', sans-serif;
+      color: var(--paper);
+      font-family: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", serif;
+      background:
+        radial-gradient(ellipse at 50% 120%, rgba(255, 90, 20, var(--fire-level, 0.15)), transparent 65%),
+        linear-gradient(#1b0f12, var(--night));
+      overflow-x: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
+
+    header { padding: 16px 16px 0; }
+
     h1 {
-      margin-top: 20px;
+      margin: 0;
+      font-size: clamp(26px, 7vw, 44px);
+      letter-spacing: 0.12em;
+      color: var(--gold);
+      text-shadow: 0 0 12px rgba(255, 106, 26, 0.7), 2px 2px 0 #000;
     }
+
+    .subtitle {
+      margin: 6px 0 0;
+      font-size: 14px;
+      opacity: 0.85;
+    }
+
+    #hud {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin: 16px auto 0;
+      max-width: 480px;
+      padding: 0 16px;
+    }
+
+    .hud-box {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.45);
+      border: 2px solid var(--gold);
+      border-radius: 6px;
+      padding: 6px 4px;
+    }
+
+    .hud-box .label { font-size: 12px; opacity: 0.8; }
+    .hud-box .value { font-size: 24px; font-weight: bold; color: var(--gold); }
+
+    #fireBar {
+      max-width: 480px;
+      height: 10px;
+      margin: 10px auto 0;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    #fireBar div {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #ffcf3a, var(--fire), var(--blood));
+      transition: width 0.25s linear;
+    }
+
+    /* 本能寺の床 */
+    #temple {
+      position: relative;
+      max-width: 480px;
+      margin: 18px auto 0;
+      padding: 18px;
+      background:
+        repeating-linear-gradient(90deg, var(--wood) 0 38px, var(--wood-dark) 38px 40px);
+      border: 6px solid #2a160c;
+      border-radius: 8px;
+      box-shadow: 0 0 30px rgba(255, 106, 26, var(--fire-level, 0.15));
+    }
+
     #game {
       display: grid;
-      grid-template-columns: repeat(3, 100px);
-      grid-gap: 20px;
-      justify-content: center;
-      margin-top: 30px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
     }
+
     .hole {
-      width: 100px;
-      height: 100px;
-      background: #ccc;
-      border-radius: 50%;
       position: relative;
-      cursor: pointer;
-    }
-    .mole {
-      width: 80px;
-      height: 80px;
-      background: brown;
+      aspect-ratio: 1 / 1;
       border-radius: 50%;
-      position: absolute;
-      top: 10px;
-      left: 10px;
-    }
-    #score {
-      margin-top: 20px;
-      font-size: 24px;
-    }
-    button {
-      margin-top: 20px;
-      font-size: 20px;
-      padding: 10px 20px;
+      overflow: hidden;
       cursor: pointer;
+      background: radial-gradient(ellipse at 50% 70%, #000 45%, #1d0e07 70%, #3b2214 100%);
+      box-shadow: inset 0 8px 14px rgba(0, 0, 0, 0.8);
+      touch-action: manipulation;
+    }
+
+    .char {
+      position: absolute;
+      left: 8%;
+      width: 84%;
+      height: 92%;
+      bottom: 0;
+      transform: translateY(105%);
+      transition: transform 0.12s ease-out;
+      pointer-events: none;
+    }
+
+    .char.up { transform: translateY(6%); }
+    .char.hit { transform: translateY(105%) rotate(25deg); transition: transform 0.25s ease-in; }
+
+    .char svg { width: 100%; height: 100%; display: block; }
+
+    .pop {
+      position: absolute;
+      left: 50%;
+      top: 30%;
+      transform: translate(-50%, 0);
+      font-size: 20px;
+      font-weight: bold;
+      pointer-events: none;
+      animation: pop 0.7s ease-out forwards;
+      text-shadow: 1px 1px 0 #000, 0 0 6px #000;
+      white-space: nowrap;
+      z-index: 2;
+    }
+
+    .pop.plus { color: var(--gold); }
+    .pop.minus { color: #ff8a80; }
+
+    @keyframes pop {
+      from { opacity: 1; transform: translate(-50%, 0); }
+      to   { opacity: 0; transform: translate(-50%, -40px); }
+    }
+
+    .legend {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 6px 14px;
+      margin: 14px auto 0;
+      padding: 0 16px;
+      font-size: 13px;
+      max-width: 480px;
+    }
+
+    .legend span b { color: var(--gold); }
+    .legend .ng b { color: #ff8a80; }
+
+    button {
+      margin: 18px 0 28px;
+      font-family: inherit;
+      font-size: 20px;
+      font-weight: bold;
+      letter-spacing: 0.1em;
+      padding: 12px 32px;
+      color: #fff;
+      background: linear-gradient(var(--blood), #6d1410);
+      border: 2px solid var(--gold);
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    button:disabled { opacity: 0.5; cursor: default; }
+
+    /* 結果画面 */
+    #result {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: rgba(0, 0, 0, 0.75);
+      z-index: 10;
+    }
+
+    #result.show { display: flex; }
+
+    .scroll {
+      width: 100%;
+      max-width: 380px;
+      padding: 24px 20px;
+      color: #2b1a10;
+      background: var(--paper);
+      border-top: 14px solid var(--wood-dark);
+      border-bottom: 14px solid var(--wood-dark);
+      border-radius: 4px;
+    }
+
+    .scroll h2 { margin: 0 0 8px; font-size: 28px; color: var(--blood); }
+    .scroll .final { font-size: 40px; font-weight: bold; margin: 6px 0; }
+    .scroll .quote { font-size: 15px; line-height: 1.7; margin: 10px 0 0; }
+    .scroll .stats { font-size: 13px; margin-top: 10px; opacity: 0.8; }
+    .scroll button { margin: 18px 0 0; }
+
+    body.shake #temple { animation: shake 0.25s; }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-6px); }
+      75% { transform: translateX(6px); }
     }
   </style>
 </head>
 <body>
 
-<h1>モグラ叩きゲーム</h1>
-<div id="score">スコア: 0</div>
-<div id="game"></div>
-<button onclick="startGame()">スタート</button>
+<header>
+  <h1>本能寺の変モグラ叩き</h1>
+  <p class="subtitle">天正十年六月二日 ―― 敵は本能寺にあり。<br>明智勢を討ち払え！ ただし白い浴衣の御屋形様には触れるべからず</p>
+</header>
 
-<audio id="hitSound" src="hit.mp3"></audio>
-<audio id="missSound" src="miss.mp3"></audio>
-<audio id="startSound" src="start.mp3"></audio>
-<audio id="endSound" src="end.mp3"></audio>
+<div id="hud">
+  <div class="hud-box"><div class="label">戦功</div><div class="value" id="score">0</div></div>
+  <div class="hud-box"><div class="label">残り時間</div><div class="value" id="time">30</div></div>
+  <div class="hud-box"><div class="label">連撃</div><div class="value" id="combo">0</div></div>
+</div>
+<div id="fireBar" title="本能寺の炎上"><div></div></div>
+
+<div id="temple">
+  <div id="game"></div>
+</div>
+
+<div class="legend">
+  <span>明智の足軽 <b>+1</b></span>
+  <span>明智光秀 <b>+5</b></span>
+  <span class="ng">森蘭丸（味方）<b>−3</b></span>
+  <span class="ng">白い浴衣の信長 <b>即ゲームオーバー</b></span>
+</div>
+
+<button id="startBtn">出陣</button>
+
+<div id="result">
+  <div class="scroll">
+    <h2 id="rankTitle"></h2>
+    <div>戦功</div>
+    <div class="final" id="finalScore">0</div>
+    <p class="quote" id="rankQuote"></p>
+    <p class="stats" id="stats"></p>
+    <button id="retryBtn">もう一度、本能寺へ</button>
+  </div>
+</div>
+
+<audio id="hitSound" src="hit.mp3" preload="auto"></audio>
+<audio id="missSound" src="miss.mp3" preload="auto"></audio>
+<audio id="startSound" src="start.mp3" preload="auto"></audio>
+<audio id="endSound" src="end.mp3" preload="auto"></audio>
 
 <script>
-  const gameContainer = document.getElementById("game");
-  const scoreDisplay = document.getElementById("score");
-  const hitSound = document.getElementById("hitSound");
-  const missSound = document.getElementById("missSound");
-  const startSound = document.getElementById("startSound");
-  const endSound = document.getElementById("endSound");
+  // ---- キャラクター（SVG） ----
+  const KIKYO = // 明智家の桔梗紋（簡略）
+    '<g fill="#6f7fd8" stroke="#fff" stroke-width="1">' +
+    [0, 72, 144, 216, 288].map(r =>
+      `<ellipse cx="0" cy="-5" rx="3.6" ry="5.5" transform="rotate(${r})"/>`).join("") +
+    '<circle r="2" fill="#fff"/></g>';
 
-  let score = 0;
-  let currentHole = null;
-  let gameInterval;
-  let gameDuration = 15000; // 15秒間
+  const CHARACTERS = {
+    ashigaru: {
+      name: "足軽", points: 1, weight: 70,
+      svg: `<svg viewBox="0 0 100 110">
+        <rect x="18" y="72" width="64" height="40" rx="10" fill="#3a3f6b"/>
+        <path d="M40 72 L50 92 L60 72" fill="#d9cfb8"/>
+        <circle cx="50" cy="58" r="24" fill="#e9b98c"/>
+        <path d="M8 46 L50 18 L92 46 Z" fill="#26201c" stroke="#000" stroke-width="2"/>
+        <g transform="translate(50 36) scale(0.9)">${KIKYO}</g>
+        <path d="M36 54 L46 58 M64 54 L54 58" stroke="#000" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="42" cy="62" r="3"/><circle cx="58" cy="62" r="3"/>
+        <path d="M43 73 Q50 68 57 73" stroke="#000" stroke-width="2.5" fill="none"/>
+      </svg>`
+    },
+    mitsuhide: {
+      name: "光秀", points: 5, weight: 12,
+      svg: `<svg viewBox="0 0 100 110">
+        <rect x="14" y="74" width="72" height="40" rx="10" fill="#1f2a55"/>
+        <circle cx="50" cy="58" r="24" fill="#e2ad7e"/>
+        <path d="M22 50 Q50 14 78 50 L84 56 L16 56 Z" fill="#1a1a1a" stroke="#c9a24a" stroke-width="2"/>
+        <path d="M30 26 Q50 40 70 26" stroke="#e8c26a" stroke-width="5" fill="none" stroke-linecap="round"/>
+        <path d="M34 58 L46 62 M66 58 L54 62" stroke="#000" stroke-width="3.5" stroke-linecap="round"/>
+        <circle cx="42" cy="66" r="3"/><circle cx="58" cy="66" r="3"/>
+        <path d="M38 76 Q44 72 50 75 Q56 72 62 76" stroke="#222" stroke-width="3" fill="none"/>
+        <text x="50" y="100" font-size="12" fill="#e8c26a" text-anchor="middle" font-weight="bold">光秀</text>
+      </svg>`
+    },
+    ranmaru: {
+      name: "蘭丸", points: -3, weight: 18,
+      svg: `<svg viewBox="0 0 100 110">
+        <rect x="18" y="74" width="64" height="40" rx="10" fill="#c2577f"/>
+        <path d="M38 74 L50 94 L62 74" fill="#fff"/>
+        <circle cx="50" cy="58" r="23" fill="#f6d2b4"/>
+        <path d="M27 56 Q26 30 50 30 Q74 30 73 56 Q66 40 50 42 Q34 40 27 56 Z" fill="#111"/>
+        <ellipse cx="50" cy="26" rx="7" ry="6" fill="#111"/>
+        <rect x="47" y="16" width="6" height="8" rx="2" fill="#c2577f"/>
+        <path d="M38 62 Q42 59 46 62 M54 62 Q58 59 62 62" stroke="#000" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <ellipse cx="38" cy="68" rx="4" ry="2.5" fill="#f2a0a8" opacity="0.8"/>
+        <ellipse cx="62" cy="68" rx="4" ry="2.5" fill="#f2a0a8" opacity="0.8"/>
+        <path d="M45 72 Q50 76 55 72" stroke="#a33" stroke-width="2" fill="none"/>
+        <text x="50" y="100" font-size="12" fill="#fff" text-anchor="middle" font-weight="bold">味方</text>
+      </svg>`
+    },
+    nobunaga: {
+      name: "信長", points: 0, weight: 10, gameOver: true,
+      svg: `<svg viewBox="0 0 100 110">
+        <rect x="16" y="74" width="68" height="40" rx="10" fill="#fbfbf6" stroke="#bbb" stroke-width="1.5"/>
+        <path d="M36 74 L52 100 M64 74 L48 92" stroke="#bbb" stroke-width="2" fill="none"/>
+        <circle cx="50" cy="58" r="23" fill="#f0c49c"/>
+        <path d="M27 54 Q28 34 50 33 Q72 34 73 54 Q70 44 62 42 L38 42 Q30 44 27 54 Z" fill="#1a1a1a"/>
+        <rect x="44" y="20" width="12" height="14" rx="3" fill="#1a1a1a"/>
+        <path d="M50 22 Q60 10 72 14" stroke="#1a1a1a" stroke-width="4" fill="none" stroke-linecap="round"/>
+        <path d="M36 57 L46 60 M64 57 L54 60" stroke="#000" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="42" cy="64" r="2.8"/><circle cx="58" cy="64" r="2.8"/>
+        <path d="M38 73 Q44 69 50 72 Q56 69 62 73" stroke="#1a1a1a" stroke-width="3" fill="none"/>
+        <text x="50" y="100" font-size="12" fill="#b3261e" text-anchor="middle" font-weight="bold">信長</text>
+      </svg>`
+    }
+  };
 
-  // 9つの穴を作成
-  for (let i = 0; i < 9; i++) {
-    const hole = document.createElement("div");
-    hole.className = "hole";
-    hole.dataset.index = i;
-    hole.addEventListener("click", () => {
-      if (hole === currentHole && hole.firstChild) {
-        score++;
-        scoreDisplay.textContent = "スコア: " + score;
-        hole.innerHTML = "";
-        hitSound.play();
-      } else {
-        missSound.play();
-      }
-    });
-    gameContainer.appendChild(hole);
+  // ---- 設定 ----
+  const GAME_SECONDS = 30;
+  const HOLE_COUNT = 9;
+
+  // ---- 要素 ----
+  const $ = id => document.getElementById(id);
+  const gameEl = $("game");
+  const scoreEl = $("score");
+  const timeEl = $("time");
+  const comboEl = $("combo");
+  const fireBarEl = document.querySelector("#fireBar div");
+  const startBtn = $("startBtn");
+  const resultEl = $("result");
+  const sounds = {
+    hit: $("hitSound"), miss: $("missSound"), start: $("startSound"), end: $("endSound")
+  };
+
+  function play(name) {
+    const a = sounds[name];
+    try {
+      a.currentTime = 0;
+      const p = a.play();
+      if (p && p.catch) p.catch(() => {});
+    } catch (e) { /* 音声が再生できない環境では無視 */ }
   }
 
-  function showMole() {
-    if (currentHole) {
-      currentHole.innerHTML = ""; // 前のモグラを消す
+  // ---- 状態 ----
+  let running = false;
+  let score = 0, combo = 0, maxCombo = 0;
+  let kills = { ashigaru: 0, mitsuhide: 0, ranmaru: 0, nobunaga: 0 };
+  let timeLeft = GAME_SECONDS;
+  let spawnTimer = null, clockTimer = null;
+  const holes = [];
+
+  // ---- 穴を作成 ----
+  for (let i = 0; i < HOLE_COUNT; i++) {
+    const el = document.createElement("div");
+    el.className = "hole";
+    const hole = { el, type: null, charEl: null, hideTimer: null };
+    el.addEventListener("pointerdown", e => { e.preventDefault(); whack(hole); });
+    gameEl.appendChild(el);
+    holes.push(hole);
+  }
+
+  function pickType() {
+    const entries = Object.entries(CHARACTERS);
+    const total = entries.reduce((s, [, c]) => s + c.weight, 0);
+    let r = Math.random() * total;
+    for (const [key, c] of entries) {
+      if ((r -= c.weight) < 0) return key;
     }
-    const holes = document.querySelectorAll(".hole");
-    const index = Math.floor(Math.random() * holes.length);
-    const mole = document.createElement("div");
-    mole.className = "mole";
-    holes[index].appendChild(mole);
-    currentHole = holes[index];
+    return "ashigaru";
+  }
+
+  // 経過時間に応じて難しくする（0 → 1）
+  function progress() {
+    return 1 - timeLeft / GAME_SECONDS;
+  }
+
+  function spawn() {
+    if (!running) return;
+    const empty = holes.filter(h => !h.type);
+    const maxUp = progress() < 0.4 ? 1 : progress() < 0.75 ? 2 : 3;
+    if (empty.length && HOLE_COUNT - empty.length < maxUp) {
+      const hole = empty[Math.floor(Math.random() * empty.length)];
+      const type = pickType();
+      const charEl = document.createElement("div");
+      charEl.className = "char";
+      charEl.innerHTML = CHARACTERS[type].svg;
+      hole.el.appendChild(charEl);
+      hole.type = type;
+      hole.charEl = charEl;
+      requestAnimationFrame(() => requestAnimationFrame(() => charEl.classList.add("up")));
+
+      const stay = 1100 - progress() * 500 + (type === "mitsuhide" ? -150 : 0);
+      hole.hideTimer = setTimeout(() => {
+        // 足軽・光秀を逃したら連撃は途切れる
+        if (hole.type && CHARACTERS[hole.type].points > 0) resetCombo();
+        clearHole(hole, false);
+      }, stay);
+    }
+    const next = 650 - progress() * 300 + Math.random() * 250;
+    spawnTimer = setTimeout(spawn, next);
+  }
+
+  function clearHole(hole, wasHit) {
+    clearTimeout(hole.hideTimer);
+    const charEl = hole.charEl;
+    hole.type = null;
+    hole.charEl = null;
+    if (!charEl) return;
+    charEl.classList.remove("up");
+    if (wasHit) charEl.classList.add("hit");
+    setTimeout(() => charEl.remove(), 260);
+  }
+
+  function whack(hole) {
+    if (!running) return;
+    if (!hole.type) {
+      resetCombo();
+      play("miss");
+      return;
+    }
+    const type = hole.type;
+    const c = CHARACTERS[type];
+    kills[type]++;
+
+    if (c.gameOver) {
+      showPop(hole, "御屋形様！？", "minus");
+      play("miss");
+      document.body.classList.remove("shake");
+      void document.body.offsetWidth;
+      document.body.classList.add("shake");
+      clearHole(hole, true);
+      endGame(true);
+      return;
+    }
+
+    if (c.points > 0) {
+      combo++;
+      maxCombo = Math.max(maxCombo, combo);
+      const bonus = combo >= 10 ? 2 : combo >= 5 ? 1 : 0;
+      const gained = c.points + bonus;
+      score += gained;
+      showPop(hole, `+${gained}${type === "mitsuhide" ? " 討ち取ったり！" : ""}`, "plus");
+      play("hit");
+    } else {
+      score = Math.max(0, score + c.points);
+      resetCombo();
+      showPop(hole, `${c.points} 蘭丸！？`, "minus");
+      play("miss");
+      document.body.classList.remove("shake");
+      void document.body.offsetWidth;
+      document.body.classList.add("shake");
+    }
+    clearHole(hole, true);
+    updateHud();
+  }
+
+  function showPop(hole, text, cls) {
+    const pop = document.createElement("div");
+    pop.className = "pop " + cls;
+    pop.textContent = text;
+    hole.el.appendChild(pop);
+    setTimeout(() => pop.remove(), 700);
+  }
+
+  function resetCombo() {
+    combo = 0;
+    updateHud();
+  }
+
+  function updateHud() {
+    scoreEl.textContent = score;
+    comboEl.textContent = combo;
+    timeEl.textContent = timeLeft;
+    const p = progress();
+    fireBarEl.style.width = (p * 100) + "%";
+    document.body.style.setProperty("--fire-level", (0.15 + p * 0.7).toFixed(2));
   }
 
   function startGame() {
-    score = 0;
-    scoreDisplay.textContent = "スコア: 0";
-    startSound.play();
+    if (running) return;
+    running = true;
+    score = 0; combo = 0; maxCombo = 0;
+    kills = { ashigaru: 0, mitsuhide: 0, ranmaru: 0, nobunaga: 0 };
+    timeLeft = GAME_SECONDS;
+    holes.forEach(h => clearHole(h, false));
+    resultEl.classList.remove("show");
+    startBtn.disabled = true;
+    startBtn.textContent = "交戦中…";
+    updateHud();
+    play("start");
 
-    gameInterval = setInterval(showMole, 800);
-    setTimeout(() => {
-      clearInterval(gameInterval);
-      if (currentHole) currentHole.innerHTML = "";
-      alert("ゲーム終了！あなたのスコアは " + score + " 点です。");
-      endSound.play();
-    }, gameDuration);
+    spawnTimer = setTimeout(spawn, 500);
+    clockTimer = setInterval(() => {
+      timeLeft--;
+      updateHud();
+      if (timeLeft <= 0) endGame();
+    }, 1000);
   }
+
+  const RANKS = [
+    { min: 60, title: "天下布武", quote: "明智勢を退け、信長は生き延びた。歴史が変わる――！" },
+    { min: 40, title: "本能寺脱出", quote: "炎の中を斬り抜け、辛くも安土へ落ち延びた。" },
+    { min: 20, title: "奮戦及ばず", quote: "「是非に及ばず」……それでも最後まで槍を振るった。" },
+    { min: 0,  title: "是非に及ばず", quote: "本能寺は炎に包まれた。人間五十年、下天の内をくらぶれば……" }
+  ];
+
+  function endGame(struckLord = false) {
+    running = false;
+    clearTimeout(spawnTimer);
+    clearInterval(clockTimer);
+    holes.forEach(h => clearHole(h, false));
+    play("end");
+
+    const rank = struckLord
+      ? { title: "主君討ち", quote: "白い浴衣の御屋形様を討ってしまった……。これでは明智勢と変わらぬ。" }
+      : RANKS.find(r => score >= r.min);
+    $("rankTitle").textContent = rank.title;
+    $("finalScore").textContent = score;
+    $("rankQuote").textContent = rank.quote;
+    $("stats").textContent =
+      `足軽 ${kills.ashigaru} ／ 光秀 ${kills.mitsuhide} ／ 蘭丸を誤って ${kills.ranmaru} ／ 最大連撃 ${maxCombo}`;
+    resultEl.classList.add("show");
+    startBtn.disabled = false;
+    startBtn.textContent = "出陣";
+  }
+
+  startBtn.addEventListener("click", startGame);
+  $("retryBtn").addEventListener("click", startGame);
+  updateHud();
 </script>
 
 </body>
