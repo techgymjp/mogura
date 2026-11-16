@@ -1,0 +1,391 @@
+/* 本能寺の変モグラ叩き */
+:root {
+  --night: #120b0b;
+  --wood: #5a3420;
+  --wood-dark: #331c10;
+  --gold: #e8c26a;
+  --paper: #f3e6c8;
+  --fire: #ff6a1a;
+  --blood: #b3261e;
+  --kikyo: #6f7fd8;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  text-align: center;
+  color: var(--paper);
+  font-family: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", serif;
+  background:
+    radial-gradient(ellipse at 50% 120%, rgba(255, 90, 20, var(--fire-level, 0.15)), transparent 65%),
+    linear-gradient(#1b0f12, var(--night));
+  overflow-x: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button.chip {
+  margin: 0;
+  font-weight: normal;
+  padding: 6px 12px;
+  font-size: 13px;
+  letter-spacing: 0;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid var(--gold);
+  color: var(--paper);
+}
+
+button.chip[aria-pressed="false"] { opacity: 0.6; }
+
+/* ---- 背景：燃える本能寺（空・奥の炎・寺・手前の炎を重ねる） ---- */
+#scene {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+#scene .layer { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#scene .haze { opacity: calc(var(--fire-level, 0.15) * 1.1); transition: opacity 1s; }
+#scene .moon-red { opacity: calc(var(--fire-level, 0.15) * 0.7); transition: opacity 1s; }
+#scene .win { opacity: calc(0.25 + var(--fire-level, 0.15) * 0.9); }
+#scene .rim { opacity: calc(var(--fire-level, 0.15) * 1.2); }
+
+#scene .banner {
+  transform-box: fill-box;
+  transform-origin: 0% 0%;
+  animation: banner 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes banner { from { transform: skewY(-3deg); } to { transform: skewY(3deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  #scene * { animation: none !important; }
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(26px, 7vw, 44px);
+  letter-spacing: 0.12em;
+  color: var(--gold);
+  text-shadow: 0 0 12px rgba(255, 106, 26, 0.7), 2px 2px 0 #000;
+}
+
+#hud {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin: 16px auto 0;
+  max-width: 480px;
+  padding: 0 16px;
+}
+
+.hud-box {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.45);
+  border: 2px solid var(--gold);
+  border-radius: 6px;
+  padding: 6px 4px;
+}
+
+.hud-box .label { font-size: 12px; opacity: 0.8; }
+.hud-box .value { font-size: 24px; font-weight: bold; color: var(--gold); }
+
+#fireBar {
+  max-width: 480px;
+  height: 10px;
+  margin: 10px auto 0;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+#fireBar div {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #ffcf3a, var(--fire), var(--blood));
+  transition: width 0.25s linear;
+}
+
+/* 本能寺の床 */
+#temple {
+  position: relative;
+  max-width: 480px;
+  margin: 18px auto 0;
+  padding: 18px;
+  background:
+    repeating-linear-gradient(90deg, rgba(90, 52, 32, 0.84) 0 38px, rgba(51, 28, 16, 0.84) 38px 40px);
+  border: 6px solid #2a160c;
+  border-radius: 8px;
+  box-shadow: 0 0 30px rgba(255, 106, 26, var(--fire-level, 0.15));
+}
+
+#game {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.hole {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
+  background: radial-gradient(ellipse at 50% 70%, #000 45%, #1d0e07 70%, #3b2214 100%);
+  box-shadow: inset 0 8px 14px rgba(0, 0, 0, 0.8);
+  touch-action: manipulation;
+}
+
+/* 穴：人物は穴の中からせり上がる。腕や刀が穴の上にはみ出せるよう、
+   穴の上側は広く、下側は穴の円の形で切り取る（.pit のマスク） */
+.hole { overflow: visible; }
+
+.pit {
+  position: absolute;
+  left: -30%;
+  right: -30%;
+  top: -70%;
+  bottom: 0;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(#000, #000), radial-gradient(circle closest-side at 50% 70.588%, #000 98%, transparent 100%);
+  -webkit-mask-size: 100% 70.588%, 100% 100%;
+  -webkit-mask-position: top, center;
+  -webkit-mask-repeat: no-repeat;
+  mask-image: linear-gradient(#000, #000), radial-gradient(circle closest-side at 50% 70.588%, #000 98%, transparent 100%);
+  mask-size: 100% 70.588%, 100% 100%;
+  mask-position: top, center;
+  mask-repeat: no-repeat;
+}
+
+.char {
+  position: absolute;
+  left: 23.75%;
+  width: 52.5%;
+  height: 54.1%;
+  bottom: 0;
+  transform: translateY(105%);
+  transition: transform 0.12s ease-out;
+}
+
+.char.up { transform: translateY(6%); }
+.char.hit.up { transform: translateY(6%); }
+
+.char svg, .castItem svg { width: 100%; height: 100%; display: block; overflow: visible; }
+
+/* コマ送り：表示中のコマだけ見せる */
+svg > g.f, svg > g.fhit { display: none; }
+svg > g.on { display: inline; }
+
+.pop {
+  position: absolute;
+  left: 50%;
+  top: 30%;
+  transform: translate(-50%, 0);
+  font-size: 20px;
+  font-weight: bold;
+  pointer-events: none;
+  animation: pop 0.7s ease-out forwards;
+  text-shadow: 1px 1px 0 #000, 0 0 6px #000;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.pop.plus { color: var(--gold); }
+.pop.minus { color: #ff8a80; }
+
+@keyframes pop {
+  from { opacity: 1; transform: translate(-50%, 0); }
+  to   { opacity: 0; transform: translate(-50%, -40px); }
+}
+
+.scroll {
+  width: 100%;
+  max-width: 380px;
+  padding: 24px 20px;
+  color: #2b1a10;
+  background: var(--paper);
+  border-top: 14px solid var(--wood-dark);
+  border-bottom: 14px solid var(--wood-dark);
+  border-radius: 4px;
+}
+
+.scroll h2 { margin: 0 0 8px; font-size: 28px; color: var(--blood); }
+.scroll .final { font-size: 40px; font-weight: bold; margin: 6px 0; }
+.scroll .quote { font-size: 15px; line-height: 1.7; margin: 10px 0 0; }
+.scroll .stats { font-size: 13px; margin-top: 10px; opacity: 0.8; }
+.scroll button { margin-top: 10px; }
+
+body.shake #temple { animation: shake 0.25s; }
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+
+/* ---- 共通のボタン ---- */
+button {
+  font-family: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button.big {
+  display: block;
+  width: 100%;
+  max-width: 300px;
+  margin: 12px auto 0;
+  padding: 14px 20px;
+  font-size: 20px;
+  font-weight: bold;
+  letter-spacing: 0.08em;
+  color: #fff;
+  background: linear-gradient(var(--blood), #6d1410);
+  border: 2px solid var(--gold);
+  border-radius: 8px;
+}
+
+button.big.sub {
+  font-size: 17px;
+  background: rgba(0, 0, 0, 0.55);
+  color: var(--paper);
+}
+
+button.big.share { background: linear-gradient(#2f5f8f, #1c3a5a); }
+button:disabled { opacity: 0.5; cursor: default; }
+[hidden] { display: none !important; }
+
+/* 右上のボタン（結果画面などの上でも押せるよう最前面） */
+#controls {
+  position: fixed;
+  top: calc(10px + env(safe-area-inset-top));
+  right: 12px;
+  z-index: 30;
+  display: flex;
+  gap: 8px;
+}
+
+/* ---- 画面 ---- */
+.screen {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: calc(56px + env(safe-area-inset-top)) 16px calc(24px + var(--banner-space, 0px));
+}
+
+/* アプリ版はバナー広告（画面の下中央）と重ならないよう下を空ける */
+body.native { --banner-space: 64px; }
+
+#titleScreen {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.titleBox, .howtoBox {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 20px 16px 24px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(232, 194, 106, 0.5);
+  border-radius: 10px;
+}
+
+.titleBox { margin-top: 8vh; }
+
+#titleScreen h1 { font-size: clamp(30px, 9vw, 48px); line-height: 1.25; }
+.tagline { margin: 12px 0 0; font-size: 15px; line-height: 1.7; }
+.bestLine { margin: 14px 0 6px; font-size: 16px; }
+.bestLine b { color: var(--gold); font-size: 24px; margin-left: 4px; }
+.menu { margin-top: 10px; }
+
+#legal {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 20px;
+  font-size: 12px;
+}
+
+#legal span, #legal a {
+  padding: 4px 8px;
+  color: var(--paper);
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 4px;
+}
+
+#legal span:empty { display: none; }
+
+/* あそびかた */
+.howtoBox h2 { margin: 0 0 8px; color: var(--gold); font-size: 26px; }
+.rules { margin: 0; padding-left: 1.3em; text-align: left; font-size: 14px; line-height: 1.7; }
+.rules b { color: #ff8a80; }
+.rewindNote { font-size: 13px; opacity: 0.9; text-align: left; }
+
+#cast {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.castItem {
+  padding: 4px 2px 6px;
+  font-size: 12px;
+  line-height: 1.35;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+}
+
+.castItem svg { display: block; width: 64px; height: 70px; margin: 0 auto; }
+.castItem .pts { font-weight: bold; color: var(--gold); }
+.castItem.ng .pts { color: #ff8a80; }
+
+/* プレイ画面 */
+#gameScreen { padding-top: calc(56px + env(safe-area-inset-top)); }
+#hud { margin-top: 0; padding: 0; }
+#fireBar { max-width: 480px; }
+
+/* ---- 重ねて出す画面（一時停止・やり直し・結果） ---- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 16px calc(16px + var(--banner-space, 0px));
+  background: rgba(0, 0, 0, 0.72);
+  overflow-y: auto;
+}
+
+.panel {
+  width: 100%;
+  max-width: 360px;
+  padding: 22px 18px 24px;
+  background: rgba(20, 10, 8, 0.95);
+  border: 2px solid var(--gold);
+  border-radius: 10px;
+}
+
+.panel h2 { margin: 0 0 6px; color: var(--gold); font-size: 24px; }
+.panel p { font-size: 14px; line-height: 1.7; margin: 8px 0 4px; }
+
+.scroll { max-height: 100%; overflow-y: auto; }
+.bestInfo { font-size: 14px; font-weight: bold; color: var(--blood); min-height: 1em; }
+.toast { margin-top: 6px; font-size: 13px; color: #2f5f8f; }
+
+/* 高さの低い画面では詰める */
+@media (max-height: 640px) {
+  .titleBox { margin-top: 2vh; }
+  .scroll { padding: 14px 16px; }
+  .scroll h2 { font-size: 22px; }
+  .scroll .final { font-size: 32px; }
+  button.big { padding: 10px 16px; margin-top: 8px; }
+}
