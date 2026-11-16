@@ -29,7 +29,7 @@
   const REDO_WAIT = 6;       // 案内は 6 秒で自動的に閉じて結果へ
 
   const state = {
-    phase: 'title',          // title | howto | play | struck（信長を叩いた直後）| over
+    phase: 'loading',        // loading | title | howto | play | struck（信長を叩いた直後）| over
     paused: false,
     score: 0, combo: 0, maxCombo: 0,
     kills: {}, remaining: GAME_MS,
@@ -66,6 +66,7 @@
   (function tick(now) {
     for (const el of animated) {
       if (!el.isConnected) { animated.delete(el); continue; }
+      if (el._cast && state.phase !== 'howto') continue;   // 隠れている「あそびかた」の人物は動かさない
       // 描画の時刻はコマ送りを始めた時刻より少し前のことがあるので、負にならないようにする
       const n = Characters.FRAMES;
       const i = ((Math.floor((now - el._t0) / 1000 * el._fps) % n) + n) % n;
@@ -74,10 +75,22 @@
     requestAnimationFrame(tick);
   })(performance.now());
 
-  function makeFigure(key) {
-    const wrap = document.createElement('div');
-    wrap.innerHTML = Characters.svg(key, t('chars')[key].label);
-    const svgEl = wrap.firstElementChild;
+  // 人物の絵は起動時に 1 度だけ作っておき（<template>）、出すときは複製して名札だけ書き換える。
+  // 出るたびに 13 コマ分の SVG を組み立てて読み込むと、スマホでは叩いたときの反応が遅れるため
+  const figCache = {};
+  function figureTemplate(key, mode) {
+    const id = key + (mode || '');
+    if (!figCache[id]) {
+      const tpl = document.createElement('template');
+      tpl.innerHTML = Characters.svg(key, '', mode);
+      figCache[id] = tpl;
+    }
+    return figCache[id];
+  }
+  function makeFigure(key, mode) {
+    const svgEl = figureTemplate(key, mode).content.firstElementChild.cloneNode(true);
+    const label = t('chars')[key].label;
+    svgEl.querySelectorAll('text.lbl').forEach((el) => { el.textContent = label; });
     animate(svgEl);
     return svgEl;
   }
@@ -97,6 +110,19 @@
     holes.push(hole);
   }
 
+  // 穴の切り抜き：上側は広く（腕や刀がはみ出せる）、下側は穴の円の形。
+  // マスク画像の重ね合わせはスマホで描画が抜けることがあるので、単純な図形（clip-path）で切る
+  function fitPits() {
+    const H = holes[0].el.offsetWidth;
+    if (!H) return;
+    const r = (v) => Math.round(v * 10) / 10;
+    const W = 1.6 * H, cy = 1.2 * H, rad = 0.5 * H;
+    const path = `path('M0 0 H${r(W)} V${r(cy)} H${r(0.8 * H + rad)} A${r(rad)} ${r(rad)} 0 0 1 ${r(0.8 * H - rad)} ${r(cy)} H0 Z')`;
+    holes.forEach((h) => { h.pit.style.clipPath = path; });
+  }
+  if (window.ResizeObserver) new ResizeObserver(fitPits).observe(gameEl);
+  window.addEventListener('resize', fitPits);
+
   function progress() { return 1 - state.remaining / GAME_MS; }
 
   function pickType() {
@@ -104,6 +130,50 @@
     let r = Math.random() * total;
     for (const k of KEYS) if ((r -= RULES[k].weight) < 0) return k;
     return 'mitsuhide';
+  }
+
+
+  // ---------- 出方のバリエーション ----------
+  // 各出方は [ポーズ, 続ける時間(ms)] の並び。ポーズは up（全身）/ peek（半分だけ顔を出す）/ bob（少し沈む）/ hide（引っ込む）
+  const PATTERNS = [
+    { name: 'normal', w: 46, steps: (s) => [['up', s]] },
+    // ひょっこり：一瞬だけ
+    { name: 'quick', w: 12, steps: (s) => [['up', s * 0.5]] },
+    // フェイント：半分だけ顔を出して引っ込み、すぐに全身で出てくる
+    { name: 'feint', w: 15, steps: (s) => [['peek', 380], ['hide', 300], ['up', s]] },
+    // 出てきそうで出てこない：半分顔を出しては引っ込むだけ
+    { name: 'tease', w: 9, steps: () => [['peek', 420], ['hide', 300], ['peek', 380], ['hide', 260], ['peek', 320]] },
+    // おバカ：全然引っ込まず、ひょこひょこ上下しながら居座る
+    { name: 'stubborn', w: 10, steps: () => Array.from({ length: 7 }, () => [['up', 380], ['bob', 240]]).flat() },
+    // 二度出し：引っ込んだと思ったら、同じ穴からまた出てくる
+    { name: 'twice', w: 8, steps: (s) => [['up', s * 0.5], ['hide', 260], ['up', s * 0.6]] }
+  ];
+  function pickPattern(p) {
+    // 序盤は素直な出方を多めに、時間がたつほど意地悪な出方を増やす
+    const weight = (pt) => pt.name === 'normal' ? pt.w * (1.4 - p) : pt.w * (0.6 + p);
+    const total = PATTERNS.reduce((a, pt) => a + weight(pt), 0);
+    let r = Math.random() * total;
+    for (const pt of PATTERNS) if ((r -= weight(pt)) < 0) return pt;
+    return PATTERNS[0];
+  }
+  function setPose(charEl, pose) {
+    charEl.classList.toggle('up', pose === 'up' || pose === 'bob');
+    charEl.classList.toggle('bob', pose === 'bob');
+    charEl.classList.toggle('peek', pose === 'peek');
+  }
+  function runSteps(hole, charEl, steps, i) {
+    if (hole.charEl !== charEl) return;           // もう叩かれた・片付けられた
+    if (i >= steps.length) {
+      // 叩くべき相手を逃したら連撃は途切れる
+      if (hole.type && RULES[hole.type].points > 0) { state.combo = 0; updateHud(); }
+      clearHole(hole, false);
+      return;
+    }
+    const [pose, ms] = steps[i];
+    setPose(charEl, pose);
+    // 引っ込んでいる間は叩けない（空振りになる）
+    hole.vulnerable = pose !== 'hide';
+    hole.hideTimer = setTimeout(() => runSteps(hole, charEl, steps, i + 1), ms);
   }
 
   function spawn() {
@@ -120,13 +190,10 @@
       hole.pit.appendChild(charEl);
       hole.type = type;
       hole.charEl = charEl;
-      requestAnimationFrame(() => requestAnimationFrame(() => charEl.classList.add('up')));
+      hole.vulnerable = false;
       const stay = 1150 - p * 500 + (type === 'mitsuhide' ? -150 : 0);
-      hole.hideTimer = setTimeout(() => {
-        // 叩くべき相手を逃したら連撃は途切れる
-        if (hole.type && RULES[hole.type].points > 0) { state.combo = 0; updateHud(); }
-        clearHole(hole, false);
-      }, stay);
+      const pattern = pickPattern(p);
+      requestAnimationFrame(() => requestAnimationFrame(() => runSteps(hole, charEl, pattern.steps(stay), 0)));
     }
     spawnTimer = setTimeout(spawn, 650 - p * 300 + Math.random() * 250);
   }
@@ -136,6 +203,7 @@
     const charEl = hole.charEl;
     hole.type = null;
     hole.charEl = null;
+    hole.vulnerable = false;
     if (!charEl) return;
     if (wasHit) {
       showHitFrame(charEl.firstElementChild);
@@ -148,6 +216,79 @@
     }
   }
   const clearAll = () => holes.forEach((h) => clearHole(h, false));
+
+  // ---------- 成敗の演出：斬撃・火花・画面の光、人物を宙に吹き飛ばす ----------
+  const fxLayer = document.createElement('div');
+  fxLayer.id = 'fxLayer';
+  document.body.appendChild(fxLayer);
+  const flashEl = document.createElement('div');
+  flashEl.id = 'flash';
+  document.body.appendChild(flashEl);
+
+  function flash(color) {
+    flashEl.style.background = color;
+    flashEl.classList.remove('on');
+    void flashEl.offsetWidth;
+    flashEl.classList.add('on');
+  }
+
+  function slashFx(hole, big) {
+    const rots = big ? [-28, 30] : [Math.random() < 0.5 ? -28 : 28];
+    rots.forEach((rot, i) => {
+      const sl = document.createElement('div');
+      sl.className = 'slash' + (big ? ' big' : '');
+      sl.style.setProperty('--rot', rot + 'deg');
+      sl.style.animationDelay = i * 0.07 + 's';
+      hole.el.appendChild(sl);
+      setTimeout(() => sl.remove(), 500);
+    });
+    const n = big ? 22 : 12;
+    for (let i = 0; i < n; i++) {
+      const sp = document.createElement('div');
+      sp.className = 'spark';
+      const a = Math.random() * Math.PI * 2, d = (big ? 90 : 55) + Math.random() * (big ? 90 : 50);
+      sp.style.setProperty('--dx', Math.cos(a) * d + 'px');
+      sp.style.setProperty('--dy', Math.sin(a) * d + 'px');
+      hole.el.appendChild(sp);
+      setTimeout(() => sp.remove(), 650);
+    }
+  }
+
+  // 叩いた人物を、目を回したコマにして回転させながら放物線で画面の外へ飛ばす
+  function launch(hole, big) {
+    const charEl = hole.charEl;
+    clearTimeout(hole.hideTimer);
+    hole.type = null;
+    hole.charEl = null;
+    if (!charEl) return;
+    const svgEl = charEl.firstElementChild;
+    showHitFrame(svgEl);
+    if (REDUCED) { charEl.remove(); return; }
+    const r = charEl.getBoundingClientRect();
+    const fly = document.createElement('div');
+    fly.className = 'flyer';
+    Object.assign(fly.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+    fly.appendChild(svgEl);
+    fxLayer.appendChild(fly);
+    charEl.remove();
+    // 左の列の穴は左へ、右の列は右へ、真ん中はどちらかへ飛ばす
+    const col = holes.indexOf(hole) % 3;
+    const dir = col === 0 ? -1 : col === 2 ? 1 : (Math.random() < 0.5 ? -1 : 1);
+    const power = big ? 1.3 : 1;
+    const vx = dir * (220 + Math.random() * 320) * power;
+    const vy = -(1050 + Math.random() * 300) * power;
+    const spin = dir * (540 + Math.random() * 540) * power;
+    const g = 2600;
+    const t0 = performance.now();
+    (function step(now) {
+      const t = (now - t0) / 1000;
+      const x = vx * t, y = vy * t + 0.5 * g * t * t;
+      const sc = 1 + (big ? 0.7 : 0.35) * Math.min(1, t * 2.5);
+      fly.style.transform = `translate(${x}px, ${y}px) rotate(${spin * t}deg) scale(${sc})`;
+      if (t < 1.8 && r.top + y < window.innerHeight + 300) requestAnimationFrame(step);
+      else fly.remove();
+    })(t0);
+  }
 
   function shake() {
     document.body.classList.remove('shake');
@@ -165,10 +306,10 @@
 
   function whack(hole) {
     if (state.phase !== 'play' || state.paused) return;
-    if (!hole.type) {
+    if (!hole.type || !hole.vulnerable) {
       state.combo = 0;
       updateHud();
-      Sound.play('miss');
+      Sound.fx('whiff');
       return;
     }
     const type = hole.type;
@@ -189,13 +330,19 @@
       const gained = rule.points + (state.combo >= 10 ? 2 : state.combo >= 5 ? 1 : 0);
       state.score += gained;
       const cry = t('chars')[type].cry;
-      showPop(hole, `+${gained}${cry ? ' ' + cry : ''}`, 'plus');
-      Sound.play('hit');
+      const big = type === 'mitsuhide';
+      showPop(hole, `+${gained}${cry ? ' ' + cry : ''}`, big ? 'plus big' : 'plus');
+      Sound.fx('hit', { level: state.combo >= 10 ? 2 : state.combo >= 5 ? 1 : 0, big });
+      slashFx(hole, big);
+      if (big) { flash('rgba(255,250,230,0.85)'); shake(); }
+      launch(hole, big);
+      updateHud();
+      return;
     } else {
       state.score = Math.max(0, state.score + rule.points);
       state.combo = 0;
       showPop(hole, `${rule.points} ${t('pop.ranmaru')}`, 'minus');
-      Sound.play('miss');
+      Sound.fx('fail');
       shake();
     }
     clearHole(hole, true);
@@ -207,11 +354,20 @@
     state.phase = 'struck';
     clearTimeout(spawnTimer);
     Sound.bgmStop();
-    Sound.play('miss');
+    Sound.fx('lord');
     shake();
-    showPop(hole, t('pop.lord'), 'minus');
+    showPop(hole, t('pop.lord'), 'minus big');
+    flash('rgba(220,30,20,0.6)');
     holes.forEach((h) => { if (h !== hole) clearHole(h, false); });
-    clearHole(hole, true);
+    // 信長は沈まず、穴から大きくせり上がって怒る（時を戻すか結果画面に移るまで）
+    clearTimeout(hole.hideTimer);
+    const charEl = hole.charEl;
+    if (charEl) {
+      charEl.innerHTML = '';
+      charEl.appendChild(makeFigure('nobunaga', 'angry'));
+      charEl.classList.remove('peek', 'bob');
+      charEl.classList.add('up', 'angry');
+    }
     render();
     if (Ads.canReward && state.redoUsed < REDO_MAX) setTimeout(() => { if (state.phase === 'struck') showRedo(); }, REDO_DELAY);
     else setTimeout(() => { if (state.phase === 'struck') endGame(true); }, 1300);
@@ -262,6 +418,7 @@
     if (result !== 'rewarded') { declineRedo(); return; }
     // 信長を叩く前の状態に戻して続ける
     closeRedo();
+    clearAll();
     Object.assign(state, state.snapshot);
     state.redoUsed++;
     state.phase = 'play';
@@ -283,8 +440,14 @@
     if (state.remaining <= 0) endGame(false);
   }, 100);
 
+  // 炎の強さ。CSS の変数を書き換えると画面全体の見た目を計算し直すので、0.05 刻みで変わったときだけにする
+  let fireShown = -1;
   function setFire(level) {
-    document.body.style.setProperty('--fire-level', level.toFixed(2));
+    const q = Math.round(level * 20) / 20;
+    if (q !== fireShown) {
+      fireShown = q;
+      document.body.style.setProperty('--fire-level', q.toFixed(2));
+    }
     if (window.Scene) Scene.setLevel(level);
   }
 
@@ -364,6 +527,7 @@
   // ---------- 画面 ----------
   function render() {
     const ph = state.phase;
+    $('loadingScreen').hidden = ph !== 'loading';
     $('titleScreen').hidden = ph !== 'title';
     $('howtoScreen').hidden = ph !== 'howto';
     $('gameScreen').hidden = !['play', 'struck', 'over'].includes(ph);
@@ -371,6 +535,9 @@
     $('result').hidden = ph !== 'over' || adBusy;
     $('pauseBtn').hidden = !(ph === 'play' && !state.paused);
     $('langBtn').hidden = !['title', 'howto', 'over'].includes(ph);
+    $('bgmBtn').hidden = ph === 'loading';
+    // プレイ中は背景の火事の描画を軽くする（盤面に隠れてほとんど見えないため）
+    if (window.Scene && Scene.setBusy) Scene.setBusy(ph === 'play' || ph === 'struck');
     $('bestScore').textContent = state.best;
     if (ph === 'title' || ph === 'howto') setFire(0.45);
     // バナー広告：タイトル・あそびかた・ポーズ・結果画面だけ（プレイ中は穴と重なるので出さない）
@@ -491,7 +658,9 @@
       const r = RULES[k];
       const item = document.createElement('div');
       item.className = 'castItem' + (r.points > 0 ? '' : ' ng');
-      item.appendChild(makeFigure(k));
+      const fig = makeFigure(k);
+      fig._cast = true;
+      item.appendChild(fig);
       const pts = r.gameOver ? t('howto.gameover') : (r.points > 0 ? '+' : '−') + Math.abs(r.points);
       item.insertAdjacentHTML('beforeend', `<div>${names[k].name}</div><div class="pts">${pts}</div>`);
       cast.appendChild(item);
@@ -515,10 +684,31 @@
     if (state.phase === 'over') renderResult();
   });
 
-  I18N.apply();
-  buildCast();
-  updateBgmBtn();
-  state.kills = Object.fromEntries(KEYS.map((k) => [k, 0]));
-  updateHud();
-  render();
+  // ---------- 起動：絵と音の準備を全部済ませてからタイトルを出す ----------
+  async function boot() {
+    I18N.apply();
+    updateBgmBtn();
+    state.kills = Object.fromEntries(KEYS.map((k) => [k, 0]));
+    updateHud();
+    render();
+    const bar = document.querySelector('#loadBar div');
+    const steps = [
+      ...KEYS.map((k) => () => figureTemplate(k)),
+      () => figureTemplate('nobunaga', 'angry'),
+      () => buildCast(),
+      () => Sound.preload()
+    ];
+    for (let i = 0; i < steps.length; i++) {
+      await steps[i]();
+      bar.style.width = Math.round((i + 1) / steps.length * 100) + '%';
+      // 1 つ終わるごとに画面を描き直させて、読み込み中の表示を止めない
+      await new Promise((r) => requestAnimationFrame(() => r()));
+    }
+    fitPits();
+    state.phase = 'title';
+    render();
+  }
+  // 最初に画面に触れたときに音を出せるようにする（ブラウザは操作があるまで音を止めている）
+  document.addEventListener('pointerdown', () => Sound.unlock(), { capture: true });
+  boot();
 })();

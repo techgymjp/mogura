@@ -118,6 +118,13 @@ window.Characters = (() => {
     (document.body || document.documentElement).appendChild(el);
   })();
 
+
+  // 怒りの印（こめかみの青筋）と、頭から噴き出す湯気
+  const vein = (x, y, sc) => `<g transform="translate(${x} ${y}) scale(${sc})" stroke="#d0211a" stroke-width="2.6" fill="none" stroke-linecap="round">` +
+    '<path d="M-6 -2 Q-2 -2 -2 -6 M2 -6 Q2 -2 6 -2 M6 2 Q2 2 2 6 M-2 6 Q-2 2 -6 2"/></g>';
+  const steam = (n) => '<g fill="#f2f2f2" opacity="0.85">' +
+    [[30, 22], [70, 20], [24, 10], [76, 8]].slice(0, n).map(([x, y], i) => `<circle cx="${x}" cy="${y - i}" r="${4 + i}"/>`).join('') + '</g>';
+
   const sweat = (x, y) => `<path d="M${x} ${y} q-3 5 0 7 q3 -2 0 -7 Z" fill="#9fd3ff" stroke="#3a7fb8" stroke-width="0.8"/>`;
   const stars = '<g fill="#ffd84a" stroke="#8a5a00" stroke-width="0.6">' +
     [[22, 30], [78, 26], [50, 14]].map(([x, y]) =>
@@ -474,7 +481,10 @@ window.Characters = (() => {
           // 細く長い口ひげと、あごの小さなひげ
           '<path d="M39 71 Q45 67.5 49.5 69.5 M50.5 69.5 Q55 67.5 61 71" stroke="#141414" stroke-width="1.7" fill="none" stroke-linecap="round"/>' +
           '<path d="M48.5 80 Q50 85 51.5 80" stroke="#141414" stroke-width="1.5" fill="none"/>' +
-          mouth(p.mouth || 'line', 74));
+          mouth(p.mouth || 'line', 74) +
+          // 怒ったとき：顔に血がのぼり、こめかみに青筋
+          (p.red ? `<path d="${face}" fill="#e23b2a" opacity="${p.red}"/>` : '') +
+          (p.vein ? vein(68, 38, p.vein) : '') + (p.steam ? steam(p.steam) : ''));
         const o = { outline: '#bbb' };
         return '<rect x="16" y="74" width="68" height="40" rx="10" fill="#fbfbf6" stroke="#bbb" stroke-width="1.5"/><rect x="16" y="74" width="68" height="40" rx="10" fill="url(#chRobeShade)" opacity=".5"/>' +
           '<path d="M38 74 L52 100 M62 74 L48 92" stroke="#bbb" stroke-width="2" fill="none"/>' + mon(30, 92, 'mokko', '#c9c9c0', 1) +
@@ -500,6 +510,16 @@ window.Characters = (() => {
     }
   };
 
+
+  // 信長を叩いてしまったときの怒りの 12 コマ：扇を突き付け、拳を振り上げて怒鳴る
+  const NOBU_ANGRY = Array.from({ length: 12 }, (_, i) => ({
+    R: i % 2 ? [94, 74] : [88, 66], fan: i % 2 ? 125 : 110,
+    L: i % 4 < 2 ? [12, 46] : [16, 54],
+    tilt: [3, -3, 2, -2][i % 4], dy: i % 2 ? -1 : 0, hdy: i % 2 ? -1 : 0,
+    eyes: 'wide', mouth: i % 3 === 2 ? 'open' : 'shout',
+    red: 0.32 + (i % 4) * 0.05, vein: 1 + (i % 3) * 0.15, steam: 1 + (i % 4), mage: -6 - (i % 2) * 2
+  }));
+
   // 叩かれたときの 1 コマ（目を回して両手を上げる）
   const HIT = { L: [14, 50], R: [86, 50], eyes: 'x', mouth: 'open', brows: 'worried', noProp: true };
 
@@ -512,12 +532,14 @@ window.Characters = (() => {
   }
 
   // 12 コマ + やられの 1 コマを 1 枚の SVG にまとめる（表示するコマは game.js が切り替える）
-  function svg(key, labelText) {
+  // mode = 'angry' のときは怒りのコマ（今は信長だけ）
+  function svg(key, labelText, mode) {
     const a = ART[key];
-    let body = a.frames.map((pose) => frameSvg(key, pose, 'f')).join('');
+    const frames = mode === 'angry' && key === 'nobunaga' ? NOBU_ANGRY : a.frames;
+    let body = frames.map((pose) => frameSvg(key, pose, 'f')).join('');
     const hit = Object.assign({}, HIT, key === 'ieyasu' ? { L: [14, 50], R: [86, 50] } : {});
     body += `<g class="fhit">${frameSvg(key, hit, 'x').replace(/^<g class="x"/, '<g')}${stars}</g>`;
-    return `<svg viewBox="0 0 100 110" overflow="visible" data-fps="${a.fps}">${body}</svg>`.replace(/\{\{label\}\}/g, labelText);
+    return `<svg viewBox="0 0 100 110" overflow="visible" data-fps="${mode === 'angry' ? 14 : a.fps}">${body}</svg>`.replace(/\{\{label\}\}/g, labelText);
   }
 
   return { FRAMES, svg, fps: (key) => ART[key].fps, keys: Object.keys(ART) };

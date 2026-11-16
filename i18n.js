@@ -3,6 +3,7 @@ window.I18N = (() => {
   const STR = {
     ja: {
       'title': '本能寺の変モグラ叩き',
+      'loading': '読み込み中…',
       'tagline': '天正十年六月二日 ―― 敵は本能寺にあり。<br>光秀と黒幕を叩け！ ただし白い浴衣の御屋形様には触れるべからず',
       'best': 'ベスト戦功',
       'btn.play': '出陣',
@@ -31,7 +32,7 @@ window.I18N = (() => {
       'howto.ng': '叩くな',
       'howto.gameover': '即終了',
       'pause.title': '一時停止',
-      'pop.lord': '御屋形様！？',
+      'pop.lord': '無礼者！',
       'pop.ranmaru': '蘭丸！？',
       'redo.title': '御屋形様を討ってしまった…',
       'redo.note': '広告を見ると、信長を叩く前まで時を戻して続けられます（1 ゲーム 1 回）。',
@@ -73,6 +74,7 @@ window.I18N = (() => {
     },
     en: {
       'title': 'Honnō-ji Whack-a-Mole',
+      'loading': 'Loading…',
       'tagline': 'June 21, 1582 — “The enemy is at Honnō-ji!”<br>Whack Mitsuhide and the masterminds! But never touch your lord in the white robe.',
       'best': 'Best merit',
       'btn.play': 'Charge!',
@@ -101,7 +103,7 @@ window.I18N = (() => {
       'howto.ng': 'Don’t',
       'howto.gameover': 'Game over',
       'pause.title': 'Paused',
-      'pop.lord': 'My lord?!',
+      'pop.lord': 'How dare you!',
       'pop.ranmaru': 'Ranmaru?!',
       'redo.title': 'You struck your own lord…',
       'redo.note': 'Watch an ad to rewind time to just before you hit Nobunaga and keep playing (once per game).',

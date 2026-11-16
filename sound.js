@@ -1,9 +1,9 @@
-// 音：効果音（mp3）と BGM（Web Audio で尺八と三味線を合成）。
-// 広告の表示中やアプリを裏に回したときは suspend() で止め、resume() で戻す
+// 音：効果音と BGM。叩いたときの音（成敗・失敗・空振り）と BGM（尺八と三味線）は Web Audio で合成し、
+// 出陣と終了の音は mp3 を鳴らす。広告の表示中やアプリを裏に回したときは suspend() で止め、resume() で戻す
 window.Sound = (() => {
-  // ---- 効果音 ----
+  // ---- 出陣・終了の音（mp3） ----
   const sfx = {};
-  for (const name of ['hit', 'miss', 'start', 'end']) {
+  for (const name of ['start', 'end']) {
     const a = new Audio(name + '.mp3');
     a.preload = 'auto';
     sfx[name] = a;
@@ -22,7 +22,8 @@ window.Sound = (() => {
 
   // ---- BGM ----
   const AC = window.AudioContext || window.webkitAudioContext;
-  let ctx = null, master, wet, noise, timer = null;
+  // 音の通り道：BGM（bgmBus。止めるときに音量を絞る）と効果音（sfxBus）を分け、それぞれにお堂の響きを付ける
+  let ctx = null, bgmBus, sfxBus, wet, sfxWet, noise, timer = null;
   let step = 0, nextTime = 0, playing = false;
   let intensity = 0; // 0（開始）→ 1（終了間際）。テンポと太鼓の数が増える
   let enabled = I18N.store.get('bgm', '1') === '1';
@@ -46,10 +47,14 @@ window.Sound = (() => {
   const LOOP = SHAKU.length;
 
   function init() {
+    if (ctx) return;
     ctx = new AC();
-    master = ctx.createGain();
-    master.gain.value = 0;
-    master.connect(ctx.destination);
+    bgmBus = ctx.createGain();
+    bgmBus.gain.value = 0;
+    bgmBus.connect(ctx.destination);
+    sfxBus = ctx.createGain();
+    sfxBus.gain.value = 0.55;
+    sfxBus.connect(ctx.destination);
 
     // 簡易リバーブ（お堂の響き）
     const len = ctx.sampleRate * 1.8;
@@ -62,23 +67,28 @@ window.Sound = (() => {
     conv.buffer = ir;
     wet = ctx.createGain();
     wet.gain.value = 0.35;
-    wet.connect(conv).connect(master);
+    wet.connect(conv).connect(bgmBus);
+    const conv2 = ctx.createConvolver();
+    conv2.buffer = ir;
+    sfxWet = ctx.createGain();
+    sfxWet.gain.value = 0.4;
+    sfxWet.connect(conv2).connect(sfxBus);
 
     noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const nd = noise.getChannelData(0);
     for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
   }
 
-  function out(node, reverb = 0.5) {
-    node.connect(master);
+  function out(node, reverb = 0.5, toSfx = false) {
+    node.connect(toSfx ? sfxBus : bgmBus);
     if (reverb) {
       const g = ctx.createGain();
       g.gain.value = reverb;
-      node.connect(g).connect(wet);
+      node.connect(g).connect(toSfx ? sfxWet : wet);
     }
   }
 
-  function noiseBurst(time, type, freq, q, gain, decay) {
+  function noiseBurst(time, type, freq, q, gain, decay, toSfx = false) {
     const src = ctx.createBufferSource();
     src.buffer = noise;
     const f = ctx.createBiquadFilter();
@@ -87,7 +97,7 @@ window.Sound = (() => {
     g.gain.setValueAtTime(gain, time);
     g.gain.exponentialRampToValueAtTime(0.001, time + decay);
     src.connect(f).connect(g);
-    out(g, 0.3);
+    out(g, 0.3, toSfx);
     src.start(time);
     src.stop(time + decay + 0.05);
   }
@@ -217,15 +227,130 @@ window.Sound = (() => {
     }
   }
 
+
+  // ======== 叩いたときの効果音（合成） ========
+  // 時間とともに周波数が動くノイズ（刀や撥が空を切る音）
+  function sweep(time, from, to, dur, gain, q = 1.2) {
+    const src = ctx.createBufferSource();
+    src.buffer = noise;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass'; f.Q.value = q;
+    f.frequency.setValueAtTime(from, time);
+    f.frequency.exponentialRampToValueAtTime(to, time + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, time);
+    g.gain.exponentialRampToValueAtTime(gain, time + dur * 0.35);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+    src.connect(f).connect(g);
+    out(g, 0.15, true);
+    src.start(time);
+    src.stop(time + dur + 0.05);
+  }
+
+  // 音の高さが下がっていく正弦波（打撃の重み・太鼓・鼓）
+  function thump(time, from, to, dur, gain, type = 'sine') {
+    const o = ctx.createOscillator();
+    o.type = type;
+    o.frequency.setValueAtTime(from, time);
+    o.frequency.exponentialRampToValueAtTime(to, time + dur * 0.6);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(gain, time);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+    o.connect(g);
+    out(g, 0.3, true);
+    o.start(time);
+    o.stop(time + dur + 0.05);
+  }
+
+  // 金属の響き（刀身の「キーン」、銅鑼）。ratios は倍音、少しずつずらして唸りを出す
+  function metal(time, base, ratios, dur, gain, glide = 1) {
+    ratios.forEach((r, i) => {
+      [1, 1.004].forEach((detune) => {
+        const o = ctx.createOscillator();
+        o.frequency.setValueAtTime(base * r * detune, time);
+        if (glide !== 1) o.frequency.exponentialRampToValueAtTime(base * r * detune * glide, time + dur);
+        const g = ctx.createGain();
+        const a = gain / (i + 1) / 2;
+        g.gain.setValueAtTime(0.0001, time);
+        g.gain.exponentialRampToValueAtTime(a, time + 0.006);
+        g.gain.exponentialRampToValueAtTime(0.0001, time + dur * (1 - i * 0.08));
+        o.connect(g);
+        out(g, 0.6, true);
+        o.start(time);
+        o.stop(time + dur + 0.05);
+      });
+    });
+  }
+
+  // 三味線の音を、撥でかき下ろすように低く滑らせる（失敗の「ビヨーン」）
+  function bend(time, midi, drop, dur, gain) {
+    const src = ctx.createBufferSource();
+    src.buffer = pluckBuffer(midi);
+    src.playbackRate.setValueAtTime(1, time);
+    src.playbackRate.exponentialRampToValueAtTime(drop, time + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(gain, time);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + dur + 0.2);
+    src.connect(g);
+    out(g, 0.4, true);
+    src.start(time);
+    src.stop(time + dur + 0.3);
+  }
+
+  const FX = {
+    // 成敗：刀が空を切る「シュッ」→ 手応えの「ズバッ」→ 刀身の「キーン」。
+    // level（連撃ボーナス 0〜2）が上がるほど余韻が高く、big（光秀）は太鼓の「ドン」と長い余韻
+    hit(t, { level = 0, big = false } = {}) {
+      const up = Math.pow(1.122, level);
+      sweep(t, 7000, 1400, 0.11, 0.55, 1.4);
+      noiseBurst(t + 0.07, 'lowpass', 1400, 0.8, 0.75, 0.09, true);
+      thump(t + 0.07, 190, 70, 0.16, 0.55);
+      metal(t + 0.075, 1760 * up, [1, 1.51, 2.42, 3.1], big ? 1.1 : 0.45, big ? 0.16 : 0.1);
+      if (big) {
+        thump(t + 0.07, 120, 46, 0.7, 0.85);
+        noiseBurst(t + 0.07, 'lowpass', 360, 0.7, 0.4, 0.12, true);
+        sweep(t + 0.16, 5000, 900, 0.12, 0.3, 1.4);
+      }
+    },
+    // 失敗（蘭丸）：鼓の「ポン」と、三味線が「ビヨーン」と下がる
+    fail(t) {
+      thump(t, 420, 210, 0.18, 0.5);
+      noiseBurst(t, 'bandpass', 1800, 1.5, 0.25, 0.03, true);
+      bend(t + 0.06, 62, 0.62, 0.45, 0.9);
+      bend(t + 0.06, 69, 0.62, 0.45, 0.5);
+    },
+    // 失敗（信長）：大きな銅鑼の「ゴワーン」と低い地響き、下がっていく三味線
+    lord(t) {
+      metal(t, 98, [1, 1.47, 2.09, 2.71, 3.33, 4.18, 5.4], 3.2, 0.34, 0.94);
+      thump(t, 80, 38, 2.2, 0.7);
+      noiseBurst(t, 'lowpass', 900, 0.7, 0.6, 0.35, true);
+      bend(t + 0.25, 57, 0.5, 1.1, 0.8);
+      bend(t + 0.25, 50, 0.5, 1.1, 0.6);
+    },
+    // 空振り：撥が空を切る「ヒュッ」と、床に当たる小さな「コッ」
+    whiff(t) {
+      sweep(t, 1500, 420, 0.2, 0.35, 1.6);
+      thump(t + 0.15, 900, 600, 0.05, 0.14, 'triangle');
+    }
+  };
+
+  // 叩いたときの効果音を鳴らす（最初に叩いたときに音の準備をする）
+  function fx(name, opts) {
+    if (!AC || suspended || !FX[name]) return;
+    init();
+    if (ctx.state === 'suspended') ctx.resume();
+    FX[name](ctx.currentTime + 0.005, opts);
+  }
+
   function bgmStart() {
     if (!enabled || !AC || playing) return;
-    if (!ctx) init();
+    init();
     if (ctx.state === 'suspended' && !suspended) ctx.resume();
     playing = true;
     step = 0;
     nextTime = ctx.currentTime + 0.08;
-    master.gain.cancelScheduledValues(ctx.currentTime);
-    master.gain.setValueAtTime(0.55, ctx.currentTime);
+    bgmBus.gain.cancelScheduledValues(ctx.currentTime);
+    bgmBus.gain.setValueAtTime(0.55, ctx.currentTime);
     timer = setInterval(scheduler, 25);
     scheduler();
   }
@@ -234,12 +359,39 @@ window.Sound = (() => {
     if (!playing) return;
     playing = false;
     clearInterval(timer);
-    master.gain.cancelScheduledValues(ctx.currentTime);
-    master.gain.setTargetAtTime(0, ctx.currentTime, 0.25);
+    bgmBus.gain.cancelScheduledValues(ctx.currentTime);
+    bgmBus.gain.setTargetAtTime(0, ctx.currentTime, 0.25);
+  }
+
+  // 起動時の準備：音の部品（響き・三味線の弦の音）を作り、mp3 を読み込んでおく。
+  // 音を出すための仕組み（AudioContext）は作っておくだけで、最初に画面に触れたときに動かす
+  function preload() {
+    if (AC) {
+      init();
+      const notes = new Set([62, 69, 57, 50]);
+      SHAMI.forEach((n) => [].concat(n || []).forEach((m) => notes.add(m)));
+      notes.forEach((m) => pluckBuffer(m));
+    }
+    const waits = Object.values(sfx).map((a) => new Promise((resolve) => {
+      if (a.readyState >= 3) return resolve();
+      const done = () => resolve();
+      a.addEventListener('canplaythrough', done, { once: true });
+      a.addEventListener('error', done, { once: true });
+      setTimeout(done, 4000); // 読み込めなくてもゲームは始められるようにする
+      try { a.load(); } catch (e) { done(); }
+    }));
+    return Promise.all(waits);
+  }
+
+  function unlock() {
+    if (ctx && ctx.state === 'suspended' && !suspended) ctx.resume();
   }
 
   return {
     play,
+    fx,
+    preload,
+    unlock,
     bgmStart,
     bgmStop,
     setIntensity(v) { intensity = Math.max(0, Math.min(1, v)); },

@@ -4,11 +4,15 @@
 window.Scene = (() => {
   const back = document.getElementById('fireBack');
   const front = document.getElementById('fireFront');
-  if (!back || !front) return { setLevel() {} };
+  if (!back || !front) return { setLevel() {}, setBusy() {} };
   const bctx = back.getContext('2d');
   const fctx = front.getContext('2d');
   const RES = 0.5;               // 炎はぼけていてよいので、半分の解像度で描いて軽くする
-  const MAX_PARTICLES = 750;
+  // スマホ（指で触る画面・小さい画面）では粒子の上限を減らす
+  const MOBILE = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || window.innerWidth < 700;
+  const MAX_PARTICLES = MOBILE ? 380 : 750;
+  let busy = false;    // プレイ中は 30 コマ／秒に落とし、炎も少し減らす
+  let acc = 0;
   const REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   let level = 0.3;               // 0（くすぶり）〜 1（全焼）
@@ -169,11 +173,18 @@ window.Scene = (() => {
 
   let last = performance.now();
   function loop(now) {
-    const dt = Math.min(0.05, (now - last) / 1000);
+    let dt = Math.min(0.05, (now - last) / 1000);
     last = now;
+    // プレイ中は 2 回に 1 回だけ描く（叩いたときの反応を優先する）
+    if (busy) {
+      acc += dt;
+      if (acc < 1 / 30) { requestAnimationFrame(loop); return; }
+      dt = Math.min(0.066, acc);
+      acc = 0;
+    }
     if (!document.hidden) {
       time += dt;
-      emit(dt);
+      emit(busy ? dt * 0.6 : dt);
       step(flames.back, dt, 40, 160);
       step(flames.front, dt, 40, 160);
       step(smoke, dt, 4, 20);
@@ -194,6 +205,7 @@ window.Scene = (() => {
   }
 
   return {
+    setBusy(b) { busy = !!b; },
     setLevel(v) {
       level = Math.max(0, Math.min(1, v));
       if (REDUCED) draw();

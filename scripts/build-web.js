@@ -9,7 +9,7 @@ fs.mkdirSync(out);
 for (const item of [
   'index.html', 'style.css',
   'i18n.js', 'sound.js', 'ads.js', 'characters.js', 'scene.js', 'game.js',
-  'hit.mp3', 'miss.mp3', 'start.mp3', 'end.mp3',
+  'start.mp3', 'end.mp3',
 ]) {
   const src = path.join(root, item);
   if (!fs.existsSync(src)) {
