@@ -1,4 +1,4 @@
-// 音：効果音（mp3）と BGM（Web Audio で太鼓・篠笛・鉦を合成）。
+// 音：効果音（mp3）と BGM（Web Audio で尺八と三味線を合成）。
 // 広告の表示中やアプリを裏に回したときは suspend() で止め、resume() で戻す
 window.Sound = (() => {
   // ---- 効果音 ----
@@ -27,16 +27,23 @@ window.Sound = (() => {
   let intensity = 0; // 0（開始）→ 1（終了間際）。テンポと太鼓の数が増える
   let enabled = I18N.store.get('bgm', '1') === '1';
 
-  // 都節音階（D・E♭・G・A・B♭）の旋律。数値は MIDI ノート、"-" は伸ばし、null は休符
   const _ = '-';
-  const MELODY = [
-    74, _, 75, 74,  70, _, 69, _,   70, 69, 67, _,  69, _, _, null,
-    67, _, 69, 70,  74, _, 75, _,   79, _, 75, 74,  70, _, _, null,
-    74, 75, 74, 70, 69, _, 70, 69,  67, _, 63, _,   62, _, _, null,
-    62, _, 63, 67,  69, _, 70, _,   69, 67, 63, _,  62, _, _, null
+  // 都節音階（D・E♭・G・A・B♭）。数値は MIDI ノート、"-" は伸ばし、null は休符
+  // 尺八の旋律（間を多めに取り、長い音で吹く）
+  const SHAKU = [
+    62, _, _, 63,   67, _, _, _,    69, _, 70, 69,  67, _, _, null,
+    69, _, 70, _,   74, _, _, _,    75, 74, 70, _,  69, _, _, null,
+    74, _, 75, 74,  70, _, 69, _,   67, _, _, 63,   62, _, _, null,
+    null, null, 67, 69, 70, _, 69, 67, 63, _, 62, _,  _, _, _, null
   ];
-  const DON = [0, 3, 4, 8, 11, 12, 14];
-  const KA = [2, 6, 10];
+  // 三味線の手（チン・トン・シャンの刻み）。配列は和音（重音）
+  const SHAMI = [
+    [50, 57], null, 57, 58,   62, null, 58, 57,   [55, 62], null, 51, 55,   50, null, 55, 57,
+    [50, 57], null, 57, 58,   62, null, 63, 62,   [58, 65], null, 57, 55,   [57, 64], null, 55, 51,
+    [55, 62], null, 58, 57,   55, null, 51, 50,   [51, 58], null, 55, 57,   [50, 57], null, 50, 57,
+    [50, 57], null, 51, 55,   57, null, 58, 57,   [55, 62], 51, 50, null,   [50, 57], null, null, null
+  ];
+  const LOOP = SHAKU.length;
 
   function init() {
     ctx = new AC();
@@ -85,58 +92,84 @@ window.Sound = (() => {
     src.stop(time + decay + 0.05);
   }
 
-  function taiko(time, vel) {
-    const o = ctx.createOscillator();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(130, time);
-    o.frequency.exponentialRampToValueAtTime(48, time + 0.3);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(vel, time);
-    g.gain.exponentialRampToValueAtTime(0.001, time + 0.6);
-    o.connect(g);
-    out(g, 0.4);
-    o.start(time);
-    o.stop(time + 0.65);
-    noiseBurst(time, 'lowpass', 380, 0.7, vel * 0.5, 0.09);
+  // ---- 三味線：はじいた弦の音（Karplus-Strong）を音の高さごとに作っておく ----
+  const pluckCache = {};
+  function pluckBuffer(midi) {
+    if (pluckCache[midi]) return pluckCache[midi];
+    const sr = ctx.sampleRate;
+    const f = 440 * Math.pow(2, (midi - 69) / 12);
+    const len = Math.floor(sr * 1.4);
+    const buf = ctx.createBuffer(1, len, sr);
+    const d = buf.getChannelData(0);
+    const N = Math.max(2, Math.round(sr / f));
+    const ring = new Float32Array(N);
+    // 撥で強くはじく：最初の揺れは明るいノイズ
+    for (let i = 0; i < N; i++) ring[i] = Math.random() * 2 - 1;
+    let idx = 0, prev = 0;
+    for (let i = 0; i < len; i++) {
+      const cur = ring[idx];
+      const next = ring[(idx + 1) % N];
+      // 減衰を小さめにして、三味線らしい明るく短い余韻にする
+      ring[idx] = (cur * 0.62 + next * 0.38) * 0.994;
+      // さわり：弦がさおに触れるビリつき（弱い折り返し歪み）
+      let v = cur + 0.25 * Math.sign(cur) * cur * cur;
+      d[i] = v * 0.6 + prev * 0.4;
+      prev = v;
+      idx = (idx + 1) % N;
+    }
+    pluckCache[midi] = buf;
+    return buf;
   }
 
-  function ka(time) { noiseBurst(time, 'bandpass', 3200, 2.5, 0.35, 0.04); }
-
-  function kane(time) {
-    [1, 2.76, 5.4].forEach((ratio, i) => {
-      const o = ctx.createOscillator();
-      o.frequency.value = 1350 * ratio;
+  function shamisen(notes, time, vel) {
+    for (const midi of [].concat(notes)) {
+      const src = ctx.createBufferSource();
+      src.buffer = pluckBuffer(midi);
+      const hp = ctx.createBiquadFilter();
+      hp.type = 'highpass'; hp.frequency.value = 120;
       const g = ctx.createGain();
-      g.gain.setValueAtTime(0.05 / (i + 1), time);
-      g.gain.exponentialRampToValueAtTime(0.0005, time + 0.28);
-      o.connect(g);
-      out(g, 0.6);
-      o.start(time);
-      o.stop(time + 0.3);
-    });
+      g.gain.setValueAtTime(0.32 * vel, time);
+      g.gain.exponentialRampToValueAtTime(0.001, time + 1.2);
+      src.connect(hp).connect(g);
+      out(g, 0.35);
+      src.start(time);
+      src.stop(time + 1.3);
+    }
+    // 撥が皮と弦に当たる「バチッ」という音
+    noiseBurst(time, 'bandpass', 2400, 1.2, 0.22 * vel, 0.035);
   }
 
-  function fue(midi, time, dur) {
+  // ---- 尺八：息の多い音。メリから持ち上げて入り、あとから揺りをかける ----
+  function shakuhachi(midi, time, dur) {
     const f = 440 * Math.pow(2, (midi - 69) / 12);
     const env = ctx.createGain();
+    const peak = 0.16;
     env.gain.setValueAtTime(0, time);
-    env.gain.linearRampToValueAtTime(0.13, time + 0.04);
-    env.gain.setValueAtTime(0.13, time + dur * 0.8);
-    env.gain.linearRampToValueAtTime(0, time + dur * 0.98);
-    out(env, 0.9);
+    env.gain.linearRampToValueAtTime(peak * 0.75, time + 0.07);
+    // 長い音はふくらませる
+    env.gain.linearRampToValueAtTime(peak, time + Math.max(0.1, dur * 0.6));
+    env.gain.linearRampToValueAtTime(0, time + dur * 0.97);
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 2600; lp.Q.value = 0.5;
+    env.connect(lp);
+    out(lp, 1.0);
 
+    // 揺り：音の途中から、ゆっくり深くかける
     const lfo = ctx.createOscillator();
-    lfo.frequency.value = 5.5;
-    [['sine', 1, 1], ['triangle', 2, 0.12]].forEach(([type, mul, level]) => {
+    lfo.frequency.value = 4.6;
+    const depth = ctx.createGain();
+    depth.gain.setValueAtTime(0, time);
+    depth.gain.setValueAtTime(0, time + Math.min(dur * 0.4, 0.35));
+    depth.gain.linearRampToValueAtTime(f * 0.018, time + dur * 0.9);
+    lfo.connect(depth);
+
+    [['sine', 1, 1], ['triangle', 2, 0.09], ['sine', 3, 0.04]].forEach(([type, mul, level]) => {
       const o = ctx.createOscillator();
       o.type = type;
-      // 「しゃくり」：少し下から音程に入る
-      o.frequency.setValueAtTime(f * mul * 0.965, time);
-      o.frequency.linearRampToValueAtTime(f * mul, time + 0.07);
-      const depth = ctx.createGain();
-      depth.gain.setValueAtTime(0, time);
-      depth.gain.linearRampToValueAtTime(f * mul * 0.012, time + Math.min(dur, 0.4));
-      lfo.connect(depth).connect(o.frequency);
+      // メリ（半音ほど低く）から本来の音へ持ち上げる
+      o.frequency.setValueAtTime(f * mul * 0.94, time);
+      o.frequency.exponentialRampToValueAtTime(f * mul, time + 0.16);
+      depth.connect(o.frequency);
       const lv = ctx.createGain();
       lv.gain.value = level;
       o.connect(lv).connect(env);
@@ -146,39 +179,41 @@ window.Sound = (() => {
     lfo.start(time);
     lfo.stop(time + dur + 0.05);
 
-    // 息の音
+    // 息の音（音の高さのまわりのかすれ）
     const src = ctx.createBufferSource();
     src.buffer = noise;
+    src.loop = true;
     const bp = ctx.createBiquadFilter();
-    bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = 6;
+    bp.type = 'bandpass'; bp.frequency.value = f * 1.5; bp.Q.value = 2.5;
     const bg = ctx.createGain();
-    bg.gain.value = 0.25;
+    bg.gain.value = 0.55;
     src.connect(bp).connect(bg).connect(env);
     src.start(time);
     src.stop(time + dur + 0.05);
+    // ムライキ：吹き始めの強い息
+    noiseBurst(time, 'bandpass', f * 2, 0.8, 0.09, 0.18);
   }
 
   function playStep(i, time, beat) {
-    const s16 = i % 16;
-    if (DON.includes(s16)) taiko(time, s16 === 0 ? 0.9 : 0.6);
-    else if (intensity > 0.6 && s16 % 2 === 0) taiko(time, 0.4);
-    if (KA.includes(s16)) ka(time);
-    if (intensity > 0.3 && s16 % 4 === 1) kane(time);
+    // 三味線：炎上が進むと休みの拍にも刻みを入れて手数を増やす
+    const sh = SHAMI[i];
+    if (sh) shamisen(sh, time, Array.isArray(sh) ? 1 : 0.8);
+    else if (intensity > 0.55 && i % 2 === 1) shamisen(SHAMI[(i + LOOP - 1) % LOOP] || 57, time, 0.5);
 
-    const note = MELODY[i];
+    const note = SHAKU[i];
     if (typeof note === 'number') {
       let len = 1;
-      while (MELODY[(i + len) % MELODY.length] === _) len++;
-      fue(note, time, len * beat);
+      while (SHAKU[(i + len) % LOOP] === _) len++;
+      shakuhachi(note, time, len * beat);
     }
   }
 
   function scheduler() {
     while (nextTime < ctx.currentTime + 0.15) {
-      const beat = 60 / (100 + intensity * 60) / 2; // 8分音符の長さ（炎上が進むほど速く）
+      const beat = 60 / (88 + intensity * 56) / 2; // 8分音符の長さ（炎上が進むほど速く）
       playStep(step, nextTime, beat);
       nextTime += beat;
-      step = (step + 1) % MELODY.length;
+      step = (step + 1) % LOOP;
     }
   }
 
