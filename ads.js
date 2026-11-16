@@ -11,11 +11,10 @@ window.Ads = (() => {
         banner: 'ca-app-pub-3940256099942544/6300978111',
       },
       // 本番の広告ユニット(AdMob の「本能寺の変モグラ叩き」Android)。空の種類は本番ビルドでは出さない
-      // AdMob で広告ユニットを作ったら、ここに ID を入れる
       production: {
         interstitial: '',
         rewarded: '',
-        banner: '',
+        banner: 'ca-app-pub-6411535997477460/9846707954',
       },
     },
     ios: {

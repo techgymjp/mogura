@@ -5,6 +5,6 @@
     <string name="title_activity_main">本能寺モグラ</string>
     <string name="package_name">jp.techgym.mogura</string>
     <string name="custom_url_scheme">jp.techgym.mogura</string>
-    <!-- AdMob のアプリ ID。今は Google 公式のテスト用。AdMob にアプリを登録したら本番の ID（ca-app-pub-6411535997477460~…）に差し替える -->
-    <string name="admob_app_id">ca-app-pub-3940256099942544~3347511713</string>
+    <!-- AdMob のアプリ ID（AdMob の「本能寺の変モグラ叩き」Android） -->
+    <string name="admob_app_id">ca-app-pub-6411535997477460~1003841812</string>
 </resources>
