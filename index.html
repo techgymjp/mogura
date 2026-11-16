@@ -226,7 +226,7 @@
 
 <header>
   <h1>本能寺の変モグラ叩き</h1>
-  <p class="subtitle">天正十年六月二日 ―― 敵は本能寺にあり。<br>明智勢を討ち払え！ ただし白い浴衣の御屋形様には触れるべからず</p>
+  <p class="subtitle">天正十年六月二日 ―― 敵は本能寺にあり。<br>光秀と黒幕を叩け！ ただし白い浴衣の御屋形様には触れるべからず</p>
 </header>
 
 <div id="hud">
@@ -241,8 +241,8 @@
 </div>
 
 <div class="legend">
-  <span>明智の足軽 <b>+1</b></span>
   <span>明智光秀 <b>+5</b></span>
+  <span>黒幕候補（秀吉・家康・義昭・公家・宣教師・僧侶） <b>+2</b></span>
   <span class="ng">森蘭丸（味方）<b>−3</b></span>
   <span class="ng">白い浴衣の信長 <b>即ゲームオーバー</b></span>
 </div>
@@ -274,21 +274,100 @@
     '<circle r="2" fill="#fff"/></g>';
 
   const CHARACTERS = {
-    ashigaru: {
-      name: "足軽", points: 1, weight: 70,
+    hideyoshi: {
+      name: "秀吉", points: 2, weight: 11, cry: "秀吉黒幕説！",
       svg: `<svg viewBox="0 0 100 110">
-        <rect x="18" y="72" width="64" height="40" rx="10" fill="#3a3f6b"/>
-        <path d="M40 72 L50 92 L60 72" fill="#d9cfb8"/>
-        <circle cx="50" cy="58" r="24" fill="#e9b98c"/>
-        <path d="M8 46 L50 18 L92 46 Z" fill="#26201c" stroke="#000" stroke-width="2"/>
-        <g transform="translate(50 36) scale(0.9)">${KIKYO}</g>
-        <path d="M36 54 L46 58 M64 54 L54 58" stroke="#000" stroke-width="3" stroke-linecap="round"/>
-        <circle cx="42" cy="62" r="3"/><circle cx="58" cy="62" r="3"/>
-        <path d="M43 73 Q50 68 57 73" stroke="#000" stroke-width="2.5" fill="none"/>
+        <rect x="16" y="74" width="68" height="40" rx="10" fill="#d9822b"/>
+        <path d="M38 74 L50 92 L62 74" fill="#f3e6c8"/>
+        <circle cx="26" cy="60" r="7" fill="#d79c6c"/><circle cx="74" cy="60" r="7" fill="#d79c6c"/>
+        <circle cx="50" cy="58" r="22" fill="#d79c6c"/>
+        <path d="M30 42 Q50 22 70 42 Z" fill="#1a1a1a"/>
+        <path d="M30 38 L6 30 L8 38 Z M70 38 L94 30 L92 38 Z" fill="#e8c26a" stroke="#8a6a20" stroke-width="1"/>
+        <path d="M37 55 Q42 51 47 55 M53 55 Q58 51 63 55" stroke="#000" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <path d="M40 61 Q43 58 46 61 M54 61 Q57 58 60 61" stroke="#000" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <path d="M41 70 Q50 78 59 70" stroke="#5a2a10" stroke-width="2.5" fill="none"/>
+        <path d="M36 66 l4 1 M64 66 l-4 1" stroke="#a0623a" stroke-width="1.5"/>
+        <text x="50" y="100" font-size="12" fill="#fff" text-anchor="middle" font-weight="bold">秀吉</text>
+      </svg>`
+    },
+    ieyasu: {
+      name: "家康", points: 2, weight: 11, cry: "家康黒幕説！",
+      svg: `<svg viewBox="0 0 100 110">
+        <rect x="14" y="74" width="72" height="40" rx="12" fill="#3c6e47"/>
+        <path d="M38 74 L50 92 L62 74" fill="#f3e6c8"/>
+        <g transform="translate(30 86)" fill="#e8c26a"><circle r="6" fill="none" stroke="#e8c26a" stroke-width="1.5"/><circle cx="0" cy="-2.5" r="2"/><circle cx="-2.4" cy="1.6" r="2"/><circle cx="2.4" cy="1.6" r="2"/></g>
+        <circle cx="50" cy="59" r="25" fill="#ebb98f"/>
+        <path d="M26 52 Q28 32 50 32 Q72 32 74 52 Q66 42 50 42 Q34 42 26 52 Z" fill="#1a1a1a"/>
+        <rect x="45" y="24" width="10" height="10" rx="3" fill="#1a1a1a"/>
+        <path d="M37 57 L46 59 M63 57 L54 59" stroke="#000" stroke-width="3" stroke-linecap="round"/>
+        <path d="M39 64 h6 M55 64 h6" stroke="#000" stroke-width="2.5" stroke-linecap="round"/>
+        <ellipse cx="37" cy="71" rx="5" ry="3" fill="#e79b86" opacity="0.6"/><ellipse cx="63" cy="71" rx="5" ry="3" fill="#e79b86" opacity="0.6"/>
+        <path d="M42 75 Q50 72 58 75" stroke="#222" stroke-width="2.5" fill="none"/>
+        <text x="50" y="100" font-size="12" fill="#fff" text-anchor="middle" font-weight="bold">家康</text>
+      </svg>`
+    },
+    yoshiaki: {
+      name: "義昭", points: 2, weight: 11, cry: "足利義昭黒幕説！",
+      svg: `<svg viewBox="0 0 100 110">
+        <rect x="16" y="74" width="68" height="40" rx="10" fill="#6a3d8f"/>
+        <path d="M38 74 L50 92 L62 74" fill="#f3e6c8"/>
+        <g transform="translate(70 86)"><circle r="6" fill="#f3e6c8"/><rect x="-6" y="-3" width="12" height="2" fill="#222"/><rect x="-6" y="1" width="12" height="2" fill="#222"/></g>
+        <circle cx="50" cy="60" r="22" fill="#efc7a2"/>
+        <path d="M32 46 L36 8 Q52 2 66 14 L68 46 Z" fill="#1a1a1a"/>
+        <path d="M30 46 h40" stroke="#1a1a1a" stroke-width="4"/>
+        <path d="M38 58 Q42 56 46 58 M54 58 Q58 56 62 58" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path d="M39 64 h6 M55 64 h6" stroke="#000" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M42 72 Q46 70 50 72 Q54 70 58 72" stroke="#222" stroke-width="1.5" fill="none"/>
+        <path d="M46 76 h8" stroke="#8a3a3a" stroke-width="2" stroke-linecap="round"/>
+        <text x="50" y="100" font-size="12" fill="#fff" text-anchor="middle" font-weight="bold">義昭</text>
+      </svg>`
+    },
+    kuge: {
+      name: "公家", points: 2, weight: 11, cry: "朝廷黒幕説！",
+      svg: `<svg viewBox="0 0 100 110">
+        <rect x="14" y="74" width="72" height="40" rx="10" fill="#b03a2e"/>
+        <path d="M38 74 L50 92 L62 74" fill="#f3e6c8"/>
+        <circle cx="50" cy="59" r="22" fill="#fbf3ea"/>
+        <rect x="36" y="20" width="28" height="22" rx="4" fill="#1a1a1a"/>
+        <rect x="30" y="38" width="40" height="6" rx="3" fill="#1a1a1a"/>
+        <path d="M58 22 Q80 6 84 30" stroke="#1a1a1a" stroke-width="4" fill="none" stroke-linecap="round"/>
+        <ellipse cx="42" cy="50" rx="3.5" ry="2.5" fill="#222"/><ellipse cx="58" cy="50" rx="3.5" ry="2.5" fill="#222"/>
+        <path d="M37 62 Q42 64 47 62 M53 62 Q58 64 63 62" stroke="#000" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <ellipse cx="50" cy="72" rx="4" ry="2.5" fill="#d0312d"/>
+        <text x="50" y="100" font-size="12" fill="#fff" text-anchor="middle" font-weight="bold">公家</text>
+      </svg>`
+    },
+    missionary: {
+      name: "宣教師", points: 2, weight: 11, cry: "イエズス会黒幕説！",
+      svg: `<svg viewBox="0 0 100 110">
+        <rect x="16" y="74" width="68" height="40" rx="10" fill="#1b1b1b"/>
+        <rect x="42" y="72" width="16" height="6" rx="2" fill="#fff"/>
+        <path d="M28 82 v14 M22 87 h12" stroke="#e8c26a" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="50" cy="56" r="22" fill="#f4cdb5"/>
+        <path d="M28 56 Q26 36 36 34 Q30 44 32 56 Z M72 56 Q74 36 64 34 Q70 44 68 56 Z" fill="#7a4a24"/>
+        <path d="M30 64 Q30 86 50 86 Q70 86 70 64 Q64 74 50 74 Q36 74 30 64 Z" fill="#7a4a24"/>
+        <path d="M37 52 Q42 49 47 52 M53 52 Q58 49 63 52" stroke="#5a3418" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <circle cx="42" cy="58" r="3" fill="#2a6fb0"/><circle cx="58" cy="58" r="3" fill="#2a6fb0"/>
+        <path d="M50 58 L47 66 h5" stroke="#c88a6a" stroke-width="2" fill="none"/>
+        <path d="M44 72 Q50 75 56 72" stroke="#5a2a10" stroke-width="2" fill="none"/>
+        <text x="50" y="100" font-size="12" fill="#fff" text-anchor="middle" font-weight="bold">宣教師</text>
+      </svg>`
+    },
+    sohei: {
+      name: "僧侶", points: 2, weight: 11, cry: "比叡山黒幕説！",
+      svg: `<svg viewBox="0 0 100 110">
+        <rect x="14" y="74" width="72" height="40" rx="10" fill="#2a2a2a"/>
+        <path d="M30 74 L50 100 L70 74" fill="#8a8a8a"/>
+        <path d="M20 80 Q16 30 50 26 Q84 30 80 80 Z" fill="#e9e6df" stroke="#bdb8ad" stroke-width="1.5"/>
+        <ellipse cx="50" cy="60" rx="17" ry="15" fill="#d9a77c"/>
+        <path d="M36 54 L46 58 M64 54 L54 58" stroke="#000" stroke-width="3.5" stroke-linecap="round"/>
+        <circle cx="43" cy="61" r="2.8"/><circle cx="57" cy="61" r="2.8"/>
+        <path d="M44 70 Q50 66 56 70" stroke="#000" stroke-width="2.5" fill="none"/>
+        <text x="50" y="100" font-size="12" fill="#fff" text-anchor="middle" font-weight="bold">僧侶</text>
       </svg>`
     },
     mitsuhide: {
-      name: "光秀", points: 5, weight: 12,
+      name: "光秀", points: 5, weight: 12, cry: "討ち取ったり！",
       svg: `<svg viewBox="0 0 100 110">
         <rect x="14" y="74" width="72" height="40" rx="10" fill="#1f2a55"/>
         <circle cx="50" cy="58" r="24" fill="#e2ad7e"/>
@@ -301,7 +380,7 @@
       </svg>`
     },
     ranmaru: {
-      name: "蘭丸", points: -3, weight: 18,
+      name: "蘭丸", points: -3, weight: 13,
       svg: `<svg viewBox="0 0 100 110">
         <rect x="18" y="74" width="64" height="40" rx="10" fill="#c2577f"/>
         <path d="M38 74 L50 94 L62 74" fill="#fff"/>
@@ -362,7 +441,7 @@
   // ---- 状態 ----
   let running = false;
   let score = 0, combo = 0, maxCombo = 0;
-  let kills = { ashigaru: 0, mitsuhide: 0, ranmaru: 0, nobunaga: 0 };
+  let kills = Object.fromEntries(Object.keys(CHARACTERS).map(k => [k, 0]));
   let timeLeft = GAME_SECONDS;
   let spawnTimer = null, clockTimer = null;
   const holes = [];
@@ -384,7 +463,7 @@
     for (const [key, c] of entries) {
       if ((r -= c.weight) < 0) return key;
     }
-    return "ashigaru";
+    return "mitsuhide";
   }
 
   // 経過時間に応じて難しくする（0 → 1）
@@ -457,7 +536,7 @@
       const bonus = combo >= 10 ? 2 : combo >= 5 ? 1 : 0;
       const gained = c.points + bonus;
       score += gained;
-      showPop(hole, `+${gained}${type === "mitsuhide" ? " 討ち取ったり！" : ""}`, "plus");
+      showPop(hole, `+${gained}${c.cry ? " " + c.cry : ""}`, "plus");
       play("hit");
     } else {
       score = Math.max(0, score + c.points);
@@ -498,7 +577,7 @@
     if (running) return;
     running = true;
     score = 0; combo = 0; maxCombo = 0;
-    kills = { ashigaru: 0, mitsuhide: 0, ranmaru: 0, nobunaga: 0 };
+    kills = Object.fromEntries(Object.keys(CHARACTERS).map(k => [k, 0]));
     timeLeft = GAME_SECONDS;
     holes.forEach(h => clearHole(h, false));
     resultEl.classList.remove("show");
@@ -516,9 +595,9 @@
   }
 
   const RANKS = [
-    { min: 60, title: "天下布武", quote: "明智勢を退け、信長は生き延びた。歴史が変わる――！" },
-    { min: 40, title: "本能寺脱出", quote: "炎の中を斬り抜け、辛くも安土へ落ち延びた。" },
-    { min: 20, title: "奮戦及ばず", quote: "「是非に及ばず」……それでも最後まで槍を振るった。" },
+    { min: 90, title: "天下布武", quote: "光秀も黒幕もことごとく退け、信長は生き延びた。歴史が変わる――！" },
+    { min: 60, title: "本能寺脱出", quote: "炎の中を斬り抜け、辛くも安土へ落ち延びた。" },
+    { min: 30, title: "奮戦及ばず", quote: "「是非に及ばず」……それでも最後まで槍を振るった。" },
     { min: 0,  title: "是非に及ばず", quote: "本能寺は炎に包まれた。人間五十年、下天の内をくらぶれば……" }
   ];
 
@@ -536,7 +615,9 @@
     $("finalScore").textContent = score;
     $("rankQuote").textContent = rank.quote;
     $("stats").textContent =
-      `足軽 ${kills.ashigaru} ／ 光秀 ${kills.mitsuhide} ／ 蘭丸を誤って ${kills.ranmaru} ／ 最大連撃 ${maxCombo}`;
+      Object.entries(CHARACTERS).filter(([, c]) => c.points > 0)
+        .map(([k, c]) => `${c.name} ${kills[k]}`).join("・") +
+      ` ／ 蘭丸を誤って ${kills.ranmaru} ／ 最大連撃 ${maxCombo}`;
     resultEl.classList.add("show");
     startBtn.disabled = false;
     startBtn.textContent = "出陣";
