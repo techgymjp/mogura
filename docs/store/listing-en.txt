@@ -1,0 +1,52 @@
+Honnoji Whack-a-Mole - Google Play store listing (English / en-US)
+
+[App name] (max 30 characters)
+Honnoji Whack-a-Mole
+
+[Short description] (max 80 characters)
+Whack Mitsuhide and the masterminds, but never hit Lord Nobunaga!
+
+[Full description] (max 4000 characters)
+June 21, 1582, before dawn. "The enemy is at Honnō-ji!"
+The temple is in flames, and figures keep popping out of the holes. Whack them!
+Strike down Akechi Mitsuhide and the rumored "masterminds" of the Honnō-ji Incident to earn merit.
+But if you hit your lord, Oda Nobunaga in his white robe, it is all over.
+
+■ WHO TO WHACK
+• Akechi Mitsuhide (+5) - swings his sword at you
+• Hashiba Hideyoshi (+2) - hops about waving his gourd
+• Tokugawa Ieyasu (+2) - dozes with folded arms, then jolts awake
+• Shogun Ashikaga Yoshiaki (+2) - writes secret letters and looks around
+• An imperial court noble (+2) - hides a "ho-ho-ho" behind his fan
+• A Jesuit missionary (+2) - raises his cross high
+• A Mt. Hiei warrior monk (+2) - twirls his naginata
+
+■ WHO NOT TO WHACK
+• Mori Ranmaru (-3) - waves both hands: "I'm on your side!"
+• Nobunaga in his white robe (game over) - dances with his fan, and flies into a rage if you hit him
+
+■ THE THRILL OF THE STRIKE
+• Every hit flashes a sword slash and sparks, and sends the figure spinning into the sky
+• Strike down Mitsuhide and the whole screen flashes and shakes
+• Hit in a row for combo bonuses. Let one escape and your combo breaks
+
+■ THEY WON'T PLAY FAIR
+• Feints: they peek out halfway and duck back down
+• Teasers that look like they're coming out... but never do
+• Quick pops, and double dips from the same hole
+• Silly ones that just won't go back in
+• The fire grows and they move faster as time runs out
+
+■ A WORLD OF OLD JAPAN
+• Figures drawn from historical portraits, animated in 12 hand-posed frames
+• The great hall of Honnō-ji burns with sparks and smoke
+• Music played on shakuhachi and shamisen, speeding up as the fire spreads
+
+■ ALSO
+• 30 seconds per game, with ranks from "Master of the Realm" to "It Cannot Be Helped"
+• Best score saved, and results you can share
+• Hit Nobunaga by mistake? Watch an ad to turn back time to just before it (once per game)
+• Plays offline (ads and sharing need a connection)
+• English and Japanese
+
+Who was really behind the Honnō-ji Incident? Whack them and find out!
