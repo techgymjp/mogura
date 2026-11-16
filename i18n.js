@@ -3,6 +3,7 @@ window.I18N = (() => {
   const STR = {
     ja: {
       'title': '本能寺の変モグラ叩き',
+      'titleHtml': '本能寺の変<br>モグラ叩き',
       'loading': '読み込み中…',
       'tagline': '天正十年六月二日 ―― 敵は本能寺にあり。<br>光秀と黒幕を叩け！ ただし白い浴衣の御屋形様には触れるべからず',
       'best': 'ベスト戦功',
@@ -74,6 +75,7 @@ window.I18N = (() => {
     },
     en: {
       'title': 'Honnō-ji Whack-a-Mole',
+      'titleHtml': 'Honnō-ji<br>Whack-a-Mole',
       'loading': 'Loading…',
       'tagline': 'June 21, 1582 — “The enemy is at Honnō-ji!”<br>Whack Mitsuhide and the masterminds! But never touch your lord in the white robe.',
       'best': 'Best merit',
