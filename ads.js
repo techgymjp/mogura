@@ -13,7 +13,7 @@ window.Ads = (() => {
       // 本番の広告ユニット(AdMob の「本能寺の変モグラ叩き」Android)。空の種類は本番ビルドでは出さない
       production: {
         interstitial: 'ca-app-pub-6411535997477460/6914697946',
-        rewarded: 'ca-app-pub-6411535997477460/6645829542',
+        rewarded: 'ca-app-pub-6411535997477460/8579133407',
         banner: 'ca-app-pub-6411535997477460/3905778262',
       },
     },
