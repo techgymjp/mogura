@@ -9,6 +9,9 @@ window.I18N = (() => {
       'best': 'ベスト戦功',
       'btn.play': '出陣',
       'btn.howto': 'あそびかた',
+      // web-only:start
+      'store.link': '▶ Android アプリ版（Google Play）',
+      // web-only:end
       'btn.title': 'タイトルへ',
       'btn.resume': '再開',
       'btn.retry': 'もう一度、本能寺へ',
@@ -81,6 +84,9 @@ window.I18N = (() => {
       'best': 'Best merit',
       'btn.play': 'Charge!',
       'btn.howto': 'How to play',
+      // web-only:start
+      'store.link': '▶ Android app (Google Play)',
+      // web-only:end
       'btn.title': 'Title',
       'btn.resume': 'Resume',
       'btn.retry': 'Back to Honnō-ji',

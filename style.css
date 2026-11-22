@@ -446,3 +446,17 @@ body.native { --banner-space: 64px; }
 .loadingText { margin: 18px 0 10px; font-size: 16px; }
 #loadBar { height: 8px; margin: 0 auto; max-width: 260px; background: rgba(255, 255, 255, 0.15); border-radius: 4px; overflow: hidden; }
 #loadBar div { height: 100%; width: 0; background: linear-gradient(90deg, #ffcf3a, var(--fire)); transition: width 0.15s; }
+
+/* Web 版だけの、Android アプリ版（Google Play）へのリンク */
+.storeLink {
+  display: inline-block;
+  margin-top: 16px;
+  padding: 8px 14px;
+  font-size: 14px;
+  color: var(--paper);
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(232, 194, 106, 0.7);
+  border-radius: 6px;
+  text-decoration: none;
+}
+.storeLink:hover { background: rgba(0, 0, 0, 0.65); }
